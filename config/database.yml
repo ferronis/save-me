@@ -1,0 +1,16 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+
+development:
+  <<: *default
+  database: save_me_development
+
+test:
+  <<: *default
+  database: save_me_test
+
+production:
+  <<: *default
+  database: save_me_production

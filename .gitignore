@@ -1,0 +1,32 @@
+# Ignore bundler config.
+/.bundle
+
+# Ignore all environment files (except templates).
+/.env*
+!/.env.example
+
+# Ignore all logfiles and tempfiles.
+/log/*
+/tmp/*
+!/log/.keep
+!/tmp/.keep
+
+# Ignore pidfiles, but keep the directory.
+/tmp/pids/*
+!/tmp/pids/
+!/tmp/pids/.keep
+
+# Ignore storage (cached media).
+/storage/*
+!/storage/.keep
+
+# Ignore master key for decrypting credentials and more.
+/config/master.key
+/config/credentials/*.key
+*.pem
+
+.DS_Store
+
+# Frontend
+/frontend/node_modules
+/frontend/dist

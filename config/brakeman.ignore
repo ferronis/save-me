@@ -1,0 +1,14 @@
+{
+  "ignored_warnings": [
+    {
+      "warning_type": "File Access",
+      "fingerprint": "79e7787ccedbd91c3e5ec61160ba560469490a64f2895d32ca921f8204c9af35",
+      "check_name": "SendFile",
+      "message": "Model attribute used in file name",
+      "file": "app/controllers/api/v1/saves_controller.rb",
+      "code": "send_file(SavedItem.find(params[:id]).thumbnail_path, :type => \"image/jpeg\", :disposition => \"inline\")",
+      "note": "thumbnail_path is built only from Rails.root, Rails.env, and the record's integer primary key (storage/thumbnails/<env>/<id>.jpg), so no request input can steer it to another file."
+    }
+  ],
+  "brakeman_version": "8.1.0"
+}
