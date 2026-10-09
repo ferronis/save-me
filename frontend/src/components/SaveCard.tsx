@@ -12,6 +12,12 @@ type Props = {
   onCategory: (name: string) => void
 }
 
+// Only web links are rendered. The server already rejects other schemes;
+// this keeps a javascript: URL from ever becoming a clickable link.
+function safeHref(url: string | null) {
+  return url && /^https?:\/\//i.test(url) ? url : undefined
+}
+
 // Long posts collapse to a few lines, like Threads.
 const CLAMP_CHARS = 280
 
@@ -71,7 +77,7 @@ export function SaveCard({ save, actionable, onUpdate, onCategory }: Props) {
 
       {save.thumbnail_url && (
         <a
-          href={save.permalink ?? undefined}
+          href={safeHref(save.permalink)}
           target="_blank"
           rel="noreferrer"
           className="relative mt-4 block overflow-hidden rounded-2xl outline outline-1 -outline-offset-1 outline-black/10"
@@ -162,8 +168,8 @@ export function SaveCard({ save, actionable, onUpdate, onCategory }: Props) {
           </button>
         )}
         <span className="flex-1" />
-        {save.permalink && (
-          <a href={save.permalink} target="_blank" rel="noreferrer" className="quiet inline-flex items-center gap-1.5 px-3 py-1.5">
+        {safeHref(save.permalink) && (
+          <a href={safeHref(save.permalink)} target="_blank" rel="noreferrer" className="quiet inline-flex items-center gap-1.5 px-3 py-1.5">
             Open <ExternalLink className="size-3.5" aria-hidden />
           </a>
         )}

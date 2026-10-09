@@ -123,6 +123,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .then(sendResponse);
     return true;
   }
+  if (message.type === "open-options") {
+    chrome.runtime.openOptionsPage();
+    return;
+  }
   if (message.type === "sync") {
     startSync(message.platform, message.fullSync).then(() => sendResponse({ ok: true }));
     return true;

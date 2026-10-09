@@ -9,6 +9,9 @@ class SavedItem < ApplicationRecord
   validates :platform, inclusion: { in: PLATFORMS }
   validates :external_id, presence: true
   validates :status, inclusion: { in: STATUSES }
+  # Permalinks become links in the viewer, so only web URLs are allowed; a
+  # javascript: or data: URL would run in the viewer's origin when clicked.
+  validates :permalink, format: { with: %r{\Ahttps?://\S+\z}i, message: "must be an http(s) URL" }, allow_nil: true
 
   scope :unclassified, -> { where(classified_at: nil) }
 

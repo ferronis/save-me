@@ -16,8 +16,6 @@
     { id: "x", name: "X" },
     { id: "reddit", name: "Reddit" },
   ];
-  const FIELDS = ["serverUrl", "token", "instagramUsername"];
-  const DEFAULTS = { serverUrl: "http://localhost:3080", token: "", instagramUsername: "" };
 
   const CSS = `
     :host {
@@ -209,32 +207,6 @@
       cursor: pointer;
     }
 
-    .settings-form {
-      display: flex;
-      flex-direction: column;
-    }
-
-    label { margin-top: 12px; font-weight: 600; }
-    label:first-child { margin-top: 0; }
-
-    input {
-      margin-top: 6px;
-      height: 34px;
-      padding: 0 14px;
-      border: 0;
-      border-radius: 999px;
-      background: var(--field);
-      box-shadow: inset 1px 2px 3px rgb(96 106 122 / 0.15), inset -1px -1px 1px rgb(255 255 255 / 0.5);
-      color: var(--ink);
-      font: inherit;
-    }
-
-    input::placeholder { color: var(--ink-soft); }
-
-    .help { margin: 6px 0 0 14px; color: var(--ink-soft); font-size: 12px; }
-    code { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
-    .saved { margin: 10px 0 0; min-height: 1.4em; color: var(--ink-soft); font-size: 12px; }
-
     @media (prefers-reduced-motion: reduce) {
       .slab { animation: none; }
       .button, .icon-button { transition: none; }
@@ -244,7 +216,6 @@
   const ICONS = {
     settings:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>',
-    back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
     close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>',
   };
 
@@ -269,40 +240,16 @@
         <div id="platforms"></div>
       </div>
 
-      <div id="settings" hidden>
-        <header class="header">
-          <button id="closeSettings" class="icon-button" type="button" aria-label="Back">${ICONS.back}</button>
-          <h1>Settings</h1>
-          <button class="icon-button" type="button" aria-label="Close" data-close>${ICONS.close}</button>
-        </header>
-        <form class="row settings-form" autocomplete="off">
-          <label for="serverUrl">Server</label>
-          <input id="serverUrl" type="url" spellcheck="false" />
-          <label for="token">Ingest token</label>
-          <input id="token" type="password" spellcheck="false" />
-          <p class="help">The <code>INGEST_TOKEN</code> from the server's <code>.env</code>.</p>
-          <label for="instagramUsername">Instagram username</label>
-          <input id="instagramUsername" type="text" spellcheck="false" placeholder="yourname" />
-          <p class="help">Used to open your saved posts page.</p>
-          <p id="saved" class="saved" aria-live="polite"></p>
-        </form>
-      </div>
     </div>
   `;
 
   const $ = (id) => root.getElementById(id);
 
-  // Move focus for keyboard users, but without the focus ring: the ring
-  // should only appear when someone is actually tabbing.
-  function showSettings(open) {
-    $("home").hidden = open;
-    $("settings").hidden = !open;
-    (open ? $("serverUrl") : $("openSettings")).focus({ focusVisible: false });
-  }
-
-  $("openSettings").addEventListener("click", () => showSettings(true));
-  $("hintSettings").addEventListener("click", () => showSettings(true));
-  $("closeSettings").addEventListener("click", () => showSettings(false));
+  // Settings live on the extension's own options page, never in this panel:
+  // the panel sits inside arbitrary web pages, and the ingest token must not.
+  const openSettings = () => chrome.runtime.sendMessage({ type: "open-options" });
+  $("openSettings").addEventListener("click", openSettings);
+  $("hintSettings").addEventListener("click", openSettings);
   for (const button of root.querySelectorAll("[data-close]")) button.addEventListener("click", () => toggle());
 
   // Typing in the panel shouldn't trigger the site's keyboard shortcuts.
@@ -357,10 +304,11 @@
     cards[platform.id] = card;
   }
 
-  const values = { ...DEFAULTS };
+  // Only whether a token exists is kept here, never the token itself.
+  const values = { hasToken: false, instagramUsername: "", statuses: {} };
 
   function render() {
-    const needsToken = !values.token;
+    const needsToken = !values.hasToken;
     $("setupHint").hidden = !needsToken;
 
     for (const platform of PLATFORMS) {
@@ -377,19 +325,6 @@
     }
   }
 
-  // Settings save as you type; a short confirmation replaces a Save button.
-  let savedTimer;
-  for (const field of FIELDS) {
-    $(field).addEventListener("input", () => {
-      let value = $(field).value.trim();
-      if (field === "instagramUsername") value = value.replace(/^@/, "");
-      chrome.storage.local.set({ [field]: value });
-      $("saved").textContent = "Saved";
-      clearTimeout(savedTimer);
-      savedTimer = setTimeout(() => ($("saved").textContent = ""), 1200);
-    });
-  }
-
   // Last-sync times come from the server, so they're right even for syncs
   // from before this panel existed. Refreshed when a sync finishes.
   async function loadSyncs() {
@@ -400,18 +335,21 @@
   const onStorageChange = (changes) => {
     const finished = changes.statuses &&
       PLATFORMS.some(({ id }) => changes.statuses.oldValue?.[id]?.running && !changes.statuses.newValue?.[id]?.running);
-    for (const [key, change] of Object.entries(changes)) values[key] = change.newValue;
+    if (changes.token) values.hasToken = Boolean(changes.token.newValue);
+    if (changes.instagramUsername) values.instagramUsername = changes.instagramUsername.newValue ?? "";
+    if (changes.statuses) values.statuses = changes.statuses.newValue ?? {};
     render();
     if (finished) loadSyncs();
   };
 
   async function open() {
-    Object.assign(values, DEFAULTS, await chrome.storage.local.get([...FIELDS, "statuses"]));
-    for (const field of FIELDS) $(field).value = values[field] ?? "";
+    const stored = await chrome.storage.local.get(["token", "instagramUsername", "statuses"]);
+    values.hasToken = Boolean(stored.token);
+    values.instagramUsername = stored.instagramUsername ?? "";
+    values.statuses = stored.statuses ?? {};
     render();
     document.documentElement.appendChild(host);
     chrome.storage.onChanged.addListener(onStorageChange);
-    showSettings(!values.token);
     loadSyncs();
   }
 

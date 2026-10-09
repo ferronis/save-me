@@ -94,7 +94,7 @@ npm run dev             # http://localhost:3081
 1. Open `chrome://extensions` and turn on **Developer mode** (top right).
 2. Click **Load unpacked** and choose the `extension/` folder.
 3. Open any normal web page and click the Save Me toolbar icon. A panel slides in on the right. It can't open on Chrome's own pages, such as the new tab page.
-4. Click the gear and paste the `INGEST_TOKEN` value from your `.env`. If you use Instagram, add your username too.
+4. Click the gear in the panel. It opens the extension's settings page, which no website can read. Paste the `INGEST_TOKEN` value from your `.env`, and if you use Instagram, add your username too.
 
 ### 4. First sync
 
@@ -116,7 +116,7 @@ All settings live in `.env`.
 | `CLASSIFIER_EFFORT`    | `low`   | Effort level passed to `claude -p`. Higher effort is about twice as slow and noticeably better only rarely. |
 | `SOLID_QUEUE_IN_PUMA`  | `true`  | Runs the background worker inside the Rails server. |
 
-**Running the server somewhere other than `localhost:3080`:** the extension is only allowed to talk to `http://localhost:3080`. Add your server's origin to `host_permissions` in `extension/manifest.json`, reload the extension in `chrome://extensions`, then set the new address under Server in the panel's settings.
+**Running the server somewhere other than `localhost:3080`:** the extension is only allowed to talk to `http://localhost:3080`. Add your server's origin to `host_permissions` in `extension/manifest.json`, reload the extension in `chrome://extensions`, then set the new address under Server on the extension's settings page.
 
 ## Privacy
 
@@ -138,6 +138,7 @@ extension/           Chrome extension (Manifest V3, no build step)
   relay.js             bridges to the service worker and drives scrolling during a sync
   background.js        maps responses to saves and posts them to the server
   panel.js             the in-page sync panel
+  options.html/.js     the settings page (server, token, Instagram username)
   threads.js, instagram.js, bluesky.js, x.js, reddit.js   per-platform parsers
 frontend/            React 19 + Vite + Tailwind 4 viewer
 ```

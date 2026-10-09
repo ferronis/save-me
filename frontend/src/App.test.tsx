@@ -128,3 +128,14 @@ test('shows an error when loading more fails', async () => {
   await waitFor(() => expect(screen.queryByText(/failed with 500/)).not.toBeInTheDocument())
   expect(screen.getByText('Summary 3')).toBeInTheDocument()
 })
+
+test('never renders a non-http link', async () => {
+  fetchMock.mockImplementation(async (url: string) => {
+    if (url.startsWith('/api/v1/categories')) return new Response('[]', { status: 200 })
+    return new Response(JSON.stringify({ total: 1, items: [save(1, { permalink: 'javascript:alert(1)' })] }), { status: 200 })
+  })
+  render(<App />)
+  await screen.findByText('Summary 1')
+  expect(screen.queryByRole('link', { name: /open/i })).not.toBeInTheDocument()
+  expect(document.querySelector('a[href^="javascript"]')).toBeNull()
+})

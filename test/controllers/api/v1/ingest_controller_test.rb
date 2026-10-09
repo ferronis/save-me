@@ -114,4 +114,18 @@ class Api::V1::IngestControllerTest < ActionDispatch::IntegrationTest
     saved = SavedItem.last
     assert_equal [ [], {} ], [ saved.media, saved.raw ]
   end
+
+  test "rejects permalinks that aren't http(s)" do
+    ingest({ platform: "threads", items: [
+      item("1", permalink: "javascript:alert(1)"),
+      item("2", permalink: "data:text/html,hi"),
+      item("3", permalink: "https://ok.example/a\njavascript:alert(1)"),
+      item("4")
+    ] })
+
+    body = response.parsed_body
+    assert_equal 1, body["created"]
+    assert_equal [ 0, 1, 2 ], body["errors"].map { |e| e["index"] }
+    assert_includes body["errors"].first["messages"].first, "http(s)"
+  end
 end
