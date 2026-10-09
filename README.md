@@ -6,6 +6,10 @@ Save Me pulls your saved posts from Threads, Instagram, Bluesky, X, and Reddit i
 
 Everything runs locally. There is no hosted service and no account to create.
 
+![The Save Me viewer: a "Do next" queue of saved posts from Threads, Reddit, X, and Bluesky, each with a summary, a suggested next step, categories, and a deadline where there is one.](docs/screenshot.jpg)
+
+<sub>The screenshot shows made-up example saves.</sub>
+
 ## What you get
 
 - **One feed of every save**, laid out like Threads cards: post text, a large image, the author, and when it was posted.
