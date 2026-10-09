@@ -6,9 +6,9 @@ Save Me pulls your saved posts from Threads, Instagram, Bluesky, X, and Reddit i
 
 Everything runs locally. There is no hosted service and no account to create.
 
-![The Save Me viewer: a "Do next" queue of saved posts from Threads, Reddit, X, and Bluesky, each with a summary, a suggested next step, categories, and a deadline where there is one.](docs/screenshot.jpg)
+![The Save Me viewer: a "Do next" queue of three saved Threads posts, each with its link preview image, a summary, a suggested next step from Claude, and categories.](docs/screenshot.jpg)
 
-<sub>The screenshot shows made-up example saves.</sub>
+<sub>The example saves are the author's own Threads posts. The summaries and next steps are real classifier output.</sub>
 
 ## What you get
 

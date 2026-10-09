@@ -59,7 +59,8 @@ export function SaveCard({ save, actionable, onUpdate, onCategory }: Props) {
 
       {body && (
         <div className="mt-3 text-[15px] leading-relaxed">
-          <p className={`whitespace-pre-line ${long && !expanded ? 'line-clamp-5' : ''}`}>{body}</p>
+          {/* overflow-wrap: anywhere lets long URLs break instead of running off the card. */}
+          <p className={`whitespace-pre-line [overflow-wrap:anywhere] ${long && !expanded ? 'line-clamp-5' : ''}`}>{body}</p>
           {long && (
             <button type="button" className="text-soft mt-1 text-sm font-medium hover:underline" onClick={() => setExpanded(!expanded)}>
               {expanded ? 'Show less' : 'Show more'}
