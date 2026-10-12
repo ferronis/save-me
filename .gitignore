@@ -27,6 +27,6 @@
 
 .DS_Store
 
-# Frontend
+# Frontend. The viewer builds into public/.
 /frontend/node_modules
-/frontend/dist
+/public

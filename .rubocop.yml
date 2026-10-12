@@ -6,3 +6,11 @@ inherit_gem: { rubocop-rails-omakase: rubocop.yml }
 # # Use `[a, [b, c]]` not `[ a, [ b, c ] ]`
 # Layout/SpaceInsideArrayLiteralBrackets:
 #   Enabled: false
+
+# The Homebrew formula follows Homebrew's style (`brew style`), not Rails'.
+inherit_mode:
+  merge:
+    - Exclude
+AllCops:
+  Exclude:
+    - packaging/**/*

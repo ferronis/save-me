@@ -18,30 +18,34 @@ class SavedItem < ApplicationRecord
   # Inbox, plus snoozed saves whose snooze has run out.
   scope :active, -> { where(status: "inbox").or(where(status: "snoozed", snoozed_until: ..Time.current)) }
   scope :still_snoozed, -> { where(status: "snoozed", snoozed_until: Time.current..) }
-  scope :in_category, ->(name) { where("? = ANY(categories)", name) }
+  scope :in_category, ->(name) {
+    where("EXISTS (SELECT 1 FROM json_each(saved_items.categories) WHERE json_each.value = ?)", name)
+  }
 
+  # categories is searched as its JSON text, which contains every name.
   SEARCH_FIELDS = <<~SQL.squish.freeze
     concat_ws(' ', text, summary, suggested_action, author_handle, author_name,
-      array_to_string(categories, ' '), raw->>'visual_discovery_organic_search_query', raw->>'subreddit')
+      categories, raw->>'visual_discovery_organic_search_query', raw->>'subreddit')
   SQL
 
-  # Every word must appear somewhere in the save, case-insensitively, so
-  # "pottery wheel" finds a post about wheels tagged Pottery.
+  # Every word must appear somewhere in the save, so "pottery wheel" finds a
+  # post about wheels tagged Pottery. SQLite's LIKE ignores case for ASCII
+  # letters only.
   scope :search, ->(query) {
     query.split.first(10).reduce(all) do |scope, word|
-      scope.where("#{SEARCH_FIELDS} ILIKE ?", "%#{sanitize_sql_like(word)}%")
+      scope.where("#{SEARCH_FIELDS} LIKE ? ESCAPE '\\'", "%#{sanitize_sql_like(word)}%")
     end
   }
 
   # Ranks the "do next" queue: deadlines in the next week or month push a
   # save up, and a passed deadline sinks it.
   scope :by_urgency, -> {
-    today = connection.quote(Date.current)
+    today = Date.current
     score = <<~SQL.squish
       CASE
-        WHEN deadline_on < #{today} THEN LEAST(COALESCE(priority, 0), 10)
-        WHEN deadline_on <= #{today}::date + 7 THEN COALESCE(priority, 0) + 20
-        WHEN deadline_on <= #{today}::date + 30 THEN COALESCE(priority, 0) + 10
+        WHEN deadline_on < #{connection.quote(today)} THEN MIN(COALESCE(priority, 0), 10)
+        WHEN deadline_on <= #{connection.quote(today + 7)} THEN COALESCE(priority, 0) + 20
+        WHEN deadline_on <= #{connection.quote(today + 30)} THEN COALESCE(priority, 0) + 10
         ELSE COALESCE(priority, 0)
       END
     SQL
@@ -50,7 +54,7 @@ class SavedItem < ApplicationRecord
 
   # Category name => number of saves, over the current scope.
   def self.category_counts
-    names = select("unnest(categories) AS name")
+    names = joins(", json_each(saved_items.categories)").select("json_each.value AS name")
     unscoped.from(names, :names).group("names.name")
       .order(Arel.sql("count(*) DESC, names.name")).count
   end

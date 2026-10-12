@@ -25,12 +25,12 @@ Everything runs locally. There is no hosted service and no account to create.
  Your browser                        Your computer
  ┌──────────────────────────┐        ┌───────────────────────────────────────┐
  │ Save Me extension        │        │ Rails server (localhost:3080)         │
- │  reads the saved posts   │ ─────▶ │  stores saves in Postgres             │
+ │  reads the saved posts   │ ─────▶ │  stores saves in SQLite               │
  │  your saved page loads   │  POST  │  caches thumbnails                    │
  └──────────────────────────┘        │  background job ─▶ claude -p          │
                                      │    (category, summary, next step,     │
  ┌──────────────────────────┐        │     priority, deadline)               │
- │ Viewer (localhost:3081)  │ ◀───── │                                       │
+ │ Viewer (localhost:3080)  │ ◀───── │                                       │
  └──────────────────────────┘        └───────────────────────────────────────┘
 ```
 
@@ -53,60 +53,48 @@ Pinterest is not supported yet.
 
 ## Requirements
 
-- macOS or Linux
-- **Ruby 3.3** and **PostgreSQL**
-- **Node 24** (the frontend's test runner doesn't start on Node 20)
+- macOS
+- **[Homebrew](https://brew.sh)**
 - **Google Chrome**, or another Chromium browser that can load unpacked extensions
 - **[Claude Code](https://docs.claude.com/en/docs/claude-code)** installed and logged in. Run `claude` once in a terminal to sign in.
 
-## Setup
+## Install
 
-### 1. Server
-
-```bash
-git clone https://github.com/ferronis/save-me.git
-cd save-me
-
-cp .env.example .env
-# Generate a random INGEST_TOKEN and write it into .env:
-sed -i.bak "s/^INGEST_TOKEN=.*/INGEST_TOKEN=$(ruby -rsecurerandom -e 'puts SecureRandom.hex(32)')/" .env && rm .env.bak
-grep INGEST_TOKEN .env   # you'll paste this value into the extension later
-# Optionally set CLASSIFIER_INTERESTS in .env (see Configuration below).
-
-bundle install
-bin/rails db:prepare
-bin/rails server        # http://localhost:3080
-```
-
-The background worker runs inside the Rails server, so this is the only process you need for syncing and classifying.
-
-### 2. Viewer
+### 1. Server and viewer
 
 ```bash
-cd frontend
-nvm use                 # switches to Node 24 from .nvmrc
-npm install
-npm run dev             # http://localhost:3081
+brew install --HEAD ferronis/tap/save-me
+save-me setup                  # finds Claude Code and prints your ingest token
+brew services start save-me    # runs Save Me now and every time you log in
 ```
 
-### 3. Extension
+Open [http://localhost:3080](http://localhost:3080) for the viewer. One background service runs the server, the viewer, and the classifier. Your saves and cached thumbnails are kept in `$(brew --prefix)/var/save-me`, and settings in `$(brew --prefix)/etc/save-me.env`.
 
-1. Open `chrome://extensions` and turn on **Developer mode** (top right).
-2. Click **Load unpacked** and choose the `extension/` folder.
-3. Open any normal web page and click the Save Me toolbar icon. A panel slides in on the right. It can't open on Chrome's own pages, such as the new tab page.
-4. Click the gear in the panel. It opens the extension's settings page, which no website can read. Paste the `INGEST_TOKEN` value from your `.env`, and if you use Instagram, add your username too.
+To upgrade, run `brew upgrade --fetch-HEAD save-me` and then `brew services restart save-me`.
 
-### 4. First sync
+### 2. Extension
+
+1. Download this repository ([zip](https://github.com/ferronis/save-me/archive/refs/heads/main.zip)) and unzip it.
+2. Open `chrome://extensions` and turn on **Developer mode** (top right).
+3. Click **Load unpacked** and choose the `extension/` folder.
+4. Open any normal web page and click the Save Me toolbar icon. A panel slides in on the right. It can't open on Chrome's own pages, such as the new tab page.
+5. Click the gear in the panel. It opens the extension's settings page, which no website can read. Paste the ingest token from `save-me setup`, and if you use Instagram, add your username too.
+
+### 3. First sync
 
 In the panel, click **Sync** next to a platform. A small window opens on your Saved page and scrolls through it. Keep that window visible until it closes on its own. These sites stop loading more posts in a hidden or minimized window.
 
 The first sync pulls everything. Later syncs stop as soon as they reach posts they already have. If a sync is interrupted, the next one goes all the way through again. Browsing your saved pages normally also picks up whatever they load.
 
-New saves are classified in the background, about 25 seconds per 20 saves, three batches at a time. A large first sync can take a few minutes to classify. To work through a backlog in the foreground instead, run `bin/rails saves:classify`.
+New saves are classified in the background, about 25 seconds per 20 saves, three batches at a time. A large first sync can take a few minutes to classify. To work through a backlog in the foreground instead, run `save-me saves:classify`.
+
+### Upgrading from the Postgres version
+
+Save Me stored saves in Postgres before it moved to SQLite. To bring them over, start from an empty database and run `save-me saves:import_postgres` (or `bin/rails saves:import_postgres` in a source checkout). It reads `save_me_development` with `psql`; pass another database name as `save-me 'saves:import_postgres[name]'`, quoted so zsh doesn't read the brackets as a file pattern. Ids are kept, so copy your old `storage/thumbnails/development/` folder into `$(brew --prefix)/var/save-me/thumbnails/production/` to keep the images.
 
 ## Configuration
 
-All settings live in `.env`.
+Settings live in `$(brew --prefix)/etc/save-me.env`, or `.env` in a source checkout. Restart the server after changing them.
 
 | Variable               | Default | What it does |
 |------------------------|---------|--------------|
@@ -115,12 +103,13 @@ All settings live in `.env`.
 | `CLASSIFIER_MODEL`     | `sonnet` | Model alias passed to `claude -p`. |
 | `CLASSIFIER_EFFORT`    | `low`   | Effort level passed to `claude -p`. Higher effort is about twice as slow and noticeably better only rarely. |
 | `SOLID_QUEUE_IN_PUMA`  | `true`  | Runs the background worker inside the Rails server. |
+| `CLAUDE_BIN`           | `claude` | Path to the Claude Code CLI. `save-me setup` fills it in, because the background service can't see your shell's `PATH`. |
 
 **Running the server somewhere other than `localhost:3080`:** the extension is only allowed to talk to `http://localhost:3080`. Add your server's origin to `host_permissions` in `extension/manifest.json`, reload the extension in `chrome://extensions`, then set the new address under Server on the extension's settings page.
 
 ## Privacy
 
-- Your saves, their images, and their classifications are stored only in your local Postgres database and `storage/` folder.
+- Your saves, their images, and their classifications are stored only in a SQLite database and thumbnail folder on your computer.
 - To classify a save, Save Me sends its text, author, posted date, link, and image descriptions to Claude through your Claude Code CLI. Anthropic's terms for your Claude plan apply to that data. Images themselves are not sent.
 - The extension's capture scripts run only on the five supported sites, and only read what your saved pages load. Its panel appears on whatever page you open it on, and only when you click the toolbar icon. Nothing runs in the background except during a sync.
 - The viewer's API has no login, because it's meant to be reachable only from your own machine. Don't expose port 3080 or 3081 to a network you don't trust.
@@ -130,6 +119,28 @@ All settings live in `.env`.
 The extension reads the same data your browser already loads when you look at your own saved posts. It doesn't log in for you, bypass access controls, or call these platforms' APIs on its own. Even so, automated collection from these sites sits in a gray area of their terms of service. Use it for your own saves, at a gentle pace, and at your own risk.
 
 ## Development
+
+Running from source needs **Ruby 3.3** and **Node 24** (the frontend's test runner doesn't start on Node 20).
+
+```bash
+git clone https://github.com/ferronis/save-me.git
+cd save-me
+
+cp .env.example .env
+# Generate a random INGEST_TOKEN and write it into .env:
+sed -i.bak "s/^INGEST_TOKEN=.*/INGEST_TOKEN=$(ruby -rsecurerandom -e 'puts SecureRandom.hex(32)')/" .env && rm .env.bak
+
+bundle install
+bin/rails db:prepare
+bin/rails server        # API on http://localhost:3080
+
+cd frontend
+nvm use                 # switches to Node 24 from .nvmrc
+npm install
+npm run dev             # viewer with hot reload on http://localhost:3081
+```
+
+`npm run build` writes the viewer into `public/`, where the Rails server serves it on port 3080, as the Homebrew install does. The formula is in `packaging/homebrew/save-me.rb`.
 
 ```
 app/                 Rails API: ingest, saves, classifier, background jobs
@@ -158,9 +169,9 @@ Adding a platform usually means three things: a rule in `hook.js` for which resp
 ## Troubleshooting
 
 - **A sync window sits on the same posts.** Make sure it isn't minimized or covered by another full-screen app. Threads in particular can take 10 seconds or more to load the next page. The window gives up after about 30 seconds with nothing new.
-- **"Token rejected. Check settings."** The token in the extension doesn't match `INGEST_TOKEN` in `.env`. Restart the server after editing `.env`.
-- **"Can't reach the server."** Start the Rails server with `bin/rails server`.
-- **Saves arrive but never get categories.** Check that `claude -p "hi"` works in a terminal. Classification errors show up in `log/development.log`.
+- **"Token rejected. Check settings."** The token in the extension doesn't match `INGEST_TOKEN`. Run `save-me setup` to see it.
+- **"Can't reach the server."** Run `brew services start save-me`, or `bin/rails server` in a source checkout.
+- **Saves arrive but never get categories.** Check that `claude -p "hi"` works in a terminal, then run `save-me setup` again so the service knows where `claude` is. Classification errors show up in `$(brew --prefix)/var/log/save-me.log`, or `log/development.log` in a source checkout.
 - **The toolbar icon does nothing.** You're on a Chrome page like the new tab page, where extensions can't draw. Switch to any website.
 
 ## License

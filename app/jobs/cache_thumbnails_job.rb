@@ -7,6 +7,6 @@ class CacheThumbnailsJob < ApplicationJob
 
   def perform
     cache = ThumbnailCache.new
-    SavedItem.where("jsonb_array_length(media) > 0").find_each { |save| cache.cache(save) }
+    SavedItem.where("json_array_length(media) > 0").find_each { |save| cache.cache(save) }
   end
 end

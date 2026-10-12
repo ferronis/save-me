@@ -15,7 +15,7 @@ class ClaudeCli
   def self.run(prompt:, system:, schema:, model: ENV.fetch("CLASSIFIER_MODEL", "sonnet"),
                effort: ENV.fetch("CLASSIFIER_EFFORT", "low"))
     command = [
-      "claude", "-p",
+      ENV.fetch("CLAUDE_BIN", "claude"), "-p",
       "--output-format", "json",
       "--model", model,
       "--effort", effort,

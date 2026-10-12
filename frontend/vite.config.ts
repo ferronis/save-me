@@ -6,6 +6,12 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // Rails serves the built viewer from public/, so an installed copy needs
+  // no Node at runtime.
+  build: {
+    outDir: '../public',
+    emptyOutDir: true,
+  },
   test: {
     environment: 'jsdom',
     globals: true,

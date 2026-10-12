@@ -2,7 +2,7 @@
 
 Local, single-user tool that collects your social media saves, classifies them, and suggests what to do with each. See README.md for an overview.
 
-Rails 8.1 API (Ruby 3.3, Postgres) on **:3080** + Vite / React 19 / Tailwind 4 / TS on **:3081**. Monorepo: Rails at the root, SPA in `frontend/`, which proxies `/api` and `/up` to Rails. Conventions follow `ferronis/starter`, minus auth, admin, and deploy. Ports 3070/3071 belong to wubbin; pick something else if these collide.
+Rails 8.1 API (Ruby 3.3, SQLite) on **:3080** + Vite / React 19 / Tailwind 4 / TS on **:3081**. Monorepo: Rails at the root, SPA in `frontend/`, which proxies `/api` and `/up` to Rails. `npm run build` writes the SPA into `public/` (gitignored), which Rails serves on :3080. Conventions follow `ferronis/starter`, minus auth, admin, and deploy. Ports 3070/3071 belong to wubbin; pick something else if these collide.
 
 Frontend needs Node 24 (`frontend/.nvmrc`). jsdom fails to start on Node 20.
 
@@ -51,13 +51,17 @@ Solid Queue lives in the primary database. Dev runs the worker inside Puma when 
 
 `GET /api/v1/saves?view=next|snoozed|done|dismissed&category=&offset=` (50 per page), `GET /api/v1/categories`, `PATCH /api/v1/saves/:id` with `status` (and `snoozed_until` when snoozing), and `GET /api/v1/saves/:id/thumbnail`. No auth: local and single-user.
 
-- A save has 1-3 `categories` (Postgres array, GIN-indexed); the first is the main one. Filter with `SavedItem.in_category`.
+- A save has 1-3 `categories` (JSON array, queried with `json_each`); the first is the main one. Filter with `SavedItem.in_category`. Search uses SQLite `LIKE`, which ignores case for ASCII letters only.
 - "Do next" is `SavedItem.active.by_urgency`: priority, plus 20 when a deadline is within 7 days or 10 within 30, and capped at 10 once the deadline has passed. Snoozed saves rejoin it on their own when `snoozed_until` passes; nothing flips their status back.
 - Platform CDN image links are signed and expire, so `CacheThumbnailsJob` copies each save's first image to `storage/thumbnails/<env>/<id>.jpg` after ingest. `bin/rails saves:thumbnails` backfills.
 - Permalinks must be `http(s)` (model validation), and the viewer renders only `http(s)` links (`safeHref`): a stored `javascript:` URL would run in the viewer's origin, which can call the unauthenticated saves API.
 - The inflection `save`/`saves` is irregular on purpose; without it Rails singularizes `saves` to `safe`.
 - Search (`q`) splits on whitespace and requires every word somewhere in the save: text, summary, next step, author, categories, or Instagram's topic hint (`SavedItem::SEARCH_FIELDS`).
 - The UI uses the same glass language as the extension panel (`.slab`, `.pill`, `.quiet`, `.etched` in `index.css`), over fixed blurred shapes in `.backdrop` that give the glass something to blur. Cards fill the width in columns; `App.tsx` deals saves across columns left to right so the ranking reads along the top row.
+
+## Install
+
+`packaging/homebrew/save-me.rb` is the Homebrew formula (published in the `ferronis/homebrew-tap` repo). It builds the SPA, bundles gems without the dev/test groups, links `storage/` to `var/save-me` so data survives upgrades, and writes `etc/save-me.env` with a random `INGEST_TOKEN` and `SECRET_KEY_BASE` on first install. `bin/save-me` runs the app in production from that file; `save-me setup` records `CLAUDE_BIN`, since `brew services` starts with a bare `PATH`. Production binds to 127.0.0.1, serves plain http, and allows only localhost hosts (DNS rebinding protection, since the API has no auth). `saves:import_postgres` moves data over from the old Postgres version.
 
 ## Not built yet
 

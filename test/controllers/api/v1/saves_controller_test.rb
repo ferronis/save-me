@@ -43,6 +43,7 @@ class Api::V1::SavesControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal %w[both pottery].sort, ids_in("next", category: "Pottery").sort
     assert_equal %w[both], ids_in("next", category: "Apps & Tools")
+    assert_empty ids_in("next", category: "Pot")
   end
 
   test "counts categories across active saves only" do

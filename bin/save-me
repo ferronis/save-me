@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Runs an installed copy of Save Me (see packaging/homebrew). Settings live in
+# the file named by SAVE_ME_CONFIG, which is created on first run.
+#
+#   save-me setup    find Claude Code and print the extension's ingest token
+#   save-me server   start the server (what the background service runs)
+#   save-me <task>   any other bin/rails command, e.g. saves:classify
+set -euo pipefail
+
+config="${SAVE_ME_CONFIG:?SAVE_ME_CONFIG must name the settings file}"
+cd "$(dirname "$0")/.."
+# The settings hold the ingest token, and the database holds your saves.
+umask 077
+
+if [ ! -e "$config" ]; then
+  cat > "$config" <<EOS
+INGEST_TOKEN=$(openssl rand -hex 32)
+SECRET_KEY_BASE=$(openssl rand -hex 64)
+SOLID_QUEUE_IN_PUMA=true
+CLASSIFIER_MODEL=sonnet
+CLASSIFIER_EFFORT=low
+# What you care about, in plain words. Saves that match rank higher.
+CLASSIFIER_INTERESTS=
+EOS
+fi
+set -a
+# shellcheck source=/dev/null
+. "$config"
+set +a
+export RAILS_ENV=production
+
+case "${1:-server}" in
+  setup)
+    # The background service starts with a bare PATH, so record where claude
+    # lives while we're in the user's own shell.
+    if claude_bin="$(command -v claude)"; then
+      grep -v '^CLAUDE_BIN=' "$config" > "$config.tmp" || true
+      # %q keeps a path with spaces a single word when the file is sourced.
+      printf 'CLAUDE_BIN=%q\n' "$claude_bin" >> "$config.tmp"
+      mv "$config.tmp" "$config"
+      echo "Claude Code: $claude_bin"
+    else
+      echo "Claude Code isn't on your PATH. Install it and run \`claude\` once to sign in, then run \`save-me setup\` again." >&2
+    fi
+    echo "Ingest token (paste it into the extension's settings): $INGEST_TOKEN"
+    ;;
+  server)
+    bin/rails db:prepare
+    exec bin/rails server -b 127.0.0.1 -p "${PORT:-3080}"
+    ;;
+  *)
+    exec bin/rails "$@"
+    ;;
+esac

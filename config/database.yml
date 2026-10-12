@@ -1,16 +1,18 @@
 default: &default
-  adapter: postgresql
-  encoding: unicode
+  adapter: sqlite3
   max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  timeout: 5000
 
 development:
   <<: *default
-  database: save_me_development
+  database: storage/development.sqlite3
 
 test:
   <<: *default
-  database: save_me_test
+  database: storage/test.sqlite3
 
+# The Homebrew install links storage/ to a directory outside the app, so the
+# database and cached thumbnails survive upgrades.
 production:
   <<: *default
-  database: save_me_production
+  database: storage/production.sqlite3

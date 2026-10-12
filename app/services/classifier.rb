@@ -104,7 +104,7 @@ class Classifier
   end
 
   def known_categories
-    SavedItem.distinct.pluck(Arel.sql("unnest(categories)")).sort.presence || STARTER_CATEGORIES
+    SavedItem.category_counts.keys.sort.presence || STARTER_CATEGORIES
   end
 
   def prompt_for(saves, categories)

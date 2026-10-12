@@ -11,9 +11,6 @@
 # It's strongly recommended that you check this file into your version control system.
 
 ActiveRecord::Schema[8.1].define(version: 2026_10_07_234712) do
-  # These are extensions that must be enabled in order to support this database
-  enable_extension "pg_catalog.plpgsql"
-
   create_table "platform_syncs", force: :cascade do |t|
     t.string "platform", null: false
     t.datetime "synced_at", null: false
@@ -29,21 +26,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_234712) do
     t.string "author_handle"
     t.string "author_name"
     t.text "text"
-    t.jsonb "media", default: [], null: false
-    t.jsonb "raw", default: {}, null: false
+    t.json "media", default: [], null: false
+    t.json "raw", default: {}, null: false
     t.datetime "posted_at"
     t.datetime "saved_at"
+    t.json "categories", default: [], null: false
     t.text "summary"
     t.text "suggested_action"
     t.integer "priority"
+    t.date "deadline_on"
     t.datetime "classified_at"
     t.string "status", default: "inbox", null: false
     t.datetime "snoozed_until"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.date "deadline_on"
-    t.string "categories", default: [], null: false, array: true
-    t.index ["categories"], name: "index_saved_items_on_categories", using: :gin
     t.index ["classified_at"], name: "index_saved_items_on_classified_at"
     t.index ["deadline_on"], name: "index_saved_items_on_deadline_on"
     t.index ["platform", "external_id"], name: "index_saved_items_on_platform_and_external_id", unique: true
