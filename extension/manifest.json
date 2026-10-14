@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Save Me",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Sends your Threads, Instagram, Bluesky, X, and Reddit saves to the local Save Me server.",
   "permissions": [
     "storage",

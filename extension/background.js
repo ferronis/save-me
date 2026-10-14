@@ -160,5 +160,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // The toolbar icon opens (or closes) the glass panel on the current page.
 // Chrome's own pages refuse injected scripts, so the click does nothing there.
 chrome.action.onClicked.addListener((tab) => {
-  chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["panel.js"] }).catch(() => {});
+  chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["panel.js"] }).catch(async () => {
+    // Chrome's own pages (the new tab page, chrome://, the Web Store) refuse
+    // injection. Explain in a popup rather than doing nothing. The popup is set
+    // only long enough to open it, so the next click on a website still gets
+    // the panel.
+    await chrome.action.setPopup({ tabId: tab.id, popup: "help.html" });
+    try {
+      await chrome.action.openPopup({ windowId: tab.windowId });
+    } catch {
+      await chrome.tabs.create({ url: chrome.runtime.getURL("help.html") });
+    } finally {
+      await chrome.action.setPopup({ tabId: tab.id, popup: "" });
+    }
+  });
 });

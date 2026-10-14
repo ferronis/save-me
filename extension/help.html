@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Save Me</title>
+    <link rel="stylesheet" href="options.css" />
+    <link rel="stylesheet" href="help.css" />
+  </head>
+  <body>
+    <!-- Shown as the toolbar popup on pages where Chrome won't let the sync
+         panel draw, such as the new tab page. -->
+    <main class="slab">
+      <h1>Save Me</h1>
+      <p class="intro">
+        Chrome doesn't let extensions draw on its own pages, like this one. Open any website and click the
+        Save Me icon again to sync.
+      </p>
+      <div class="actions">
+        <button id="openViewer" class="button" type="button">Open Save Me</button>
+        <button id="openSettings" class="button quiet" type="button">Settings</button>
+      </div>
+    </main>
+    <script type="module" src="help.js"></script>
+  </body>
+</html>

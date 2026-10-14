@@ -170,7 +170,7 @@ Adding a platform usually means three things: a rule in `hook.js` for which resp
 - **"Token rejected. Check settings."** The token in the extension doesn't match `INGEST_TOKEN`. Run `save-me setup` to see it.
 - **"Can't reach the server" or "Save Me isn't running."** Run `brew services start save-me`, or `bin/rails server` in a source checkout.
 - **Saves arrive but never get categories.** Check that `claude -p "hi"` works in a terminal, then run `save-me setup` again so the service knows where `claude` is. Classification errors show up in `$(brew --prefix)/var/log/save-me.log`, or `log/development.log` in a source checkout.
-- **The toolbar icon does nothing.** You're on a Chrome page like the new tab page, where extensions can't draw. Switch to any website.
+- **Clicking the toolbar icon shows "Chrome doesn't let extensions draw on its own pages."** You're on a Chrome page like the new tab page. The sync panel opens on any website, so switch to one. The popup can also open the viewer or settings.
 
 ## License
 
