@@ -120,9 +120,12 @@ class SavedItem < ApplicationRecord
     }.compact
   end
 
+  # Per environment, so test runs never see or clobber dev thumbnails.
+  # Parallel test workers each get their own (see test_helper.rb).
+  class_attribute :thumbnail_dir, default: Rails.root.join("storage", "thumbnails", Rails.env)
+
   def thumbnail_path
-    # Per environment, so test runs never see or clobber dev thumbnails.
-    Rails.root.join("storage", "thumbnails", Rails.env, "#{id}.jpg")
+    thumbnail_dir.join("#{id}.jpg")
   end
 
   def thumbnail_source_url

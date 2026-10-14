@@ -20,7 +20,9 @@ There is no popup. Clicking the toolbar icon injects `panel.js` into the current
 
 The panel's "Open Save Me" button sends `open-viewer`, and `background.js` focuses an existing viewer tab or opens one. When `platform-syncs` comes back null, the server is unreachable: the panel shows how to start it and disables that button.
 
-Settings (server URL, ingest token, Instagram username) live on the extension's options page (`options.html`), never in the panel. The panel runs inside arbitrary web pages, and a hostile page can capture even a closed shadow root by patching `attachShadow` before injection. So the panel only ever learns *whether* a token exists, and its gear sends `open-options` to `background.js`. Keep the token out of the panel.
+The extension gets the ingest token itself: `background.js` POSTs to `/api/v1/extension_token` on install, when the panel opens without a token, from the panel's Connect link, and once after an ingest is rejected with 401. `ExtensionTokensController` answers only a `chrome-extension://` origin, or none (a non-browser client could read the settings file anyway). Browsers always send Origin on a POST, so no web page, including the viewer, can get it.
+
+Settings (server URL, ingest token, Instagram and TikTok usernames) live on the extension's options page (`options.html`), never in the panel. The panel runs inside arbitrary web pages, and a hostile page can capture even a closed shadow root by patching `attachShadow` before injection. So the panel only ever learns *whether* a token exists, and its gear sends `open-options` to `background.js`. Keep the token out of the panel.
 
 Neither Threads nor Instagram exposes saved posts through a public API, so the extension captures what each web app already loads; Bluesky uses the same approach for consistency. For Threads:
 

@@ -267,7 +267,9 @@
           <button class="icon-button" type="button" aria-label="Close" data-close>${ICONS.close}</button>
         </header>
         <p id="setupHint" class="hint" hidden>
-          Add your ingest token in <button type="button" class="link" id="hintSettings">settings</button> to start syncing.
+          <span id="connectStatus">Not connected to Save Me yet.</span>
+          <button type="button" class="link" id="connect">Connect</button> or add a token in
+          <button type="button" class="link" id="hintSettings">settings</button>.
         </p>
         <p id="offlineHint" class="hint" hidden>
           Save Me isn't running. Start it with <code>brew services start save-me</code>.
@@ -289,6 +291,21 @@
   const openSettings = () => chrome.runtime.sendMessage({ type: "open-options" });
   $("openSettings").addEventListener("click", openSettings);
   $("hintSettings").addEventListener("click", openSettings);
+
+  // The background fetches and stores the token; the panel only learns
+  // that one now exists, through the storage change.
+  async function connect() {
+    $("connectStatus").textContent = "Connecting…";
+    const result = await chrome.runtime.sendMessage({ type: "connect" }).catch(() => null);
+    if (result?.ok) return;
+    // 404: the server answered but has no INGEST_TOKEN set.
+    $("connectStatus").textContent = result?.status === 404
+      ? "Save Me has no ingest token set."
+      : result?.status
+        ? "Save Me refused to connect."
+        : "Couldn't connect. Is Save Me running?";
+  }
+  $("connect").addEventListener("click", connect);
   $("openViewer").addEventListener("click", () => chrome.runtime.sendMessage({ type: "open-viewer" }));
   $("syncAll").addEventListener("click", () => chrome.runtime.sendMessage({ type: "sync-all", platforms: syncAllPlatforms() }));
 
@@ -364,10 +381,11 @@
 
   function render() {
     const needsToken = !values.hasToken;
-    $("setupHint").hidden = !needsToken;
     // platform-syncs answers null when the server can't be reached, and
     // values.syncs is undefined until that first answer arrives.
     const offline = values.syncs === null;
+    // While the server is down, "isn't running" says it all; connecting waits.
+    $("setupHint").hidden = !needsToken || offline;
     const unavailable = offline || values.syncs === undefined;
     $("offlineHint").hidden = !offline;
     $("openViewer").disabled = unavailable;
@@ -423,6 +441,7 @@
     document.documentElement.appendChild(host);
     chrome.storage.onChanged.addListener(onStorageChange);
     loadSyncs();
+    if (!values.hasToken) connect();
   }
 
   function close() {

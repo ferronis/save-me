@@ -21,7 +21,7 @@ class SaveMeLauncherTest < ActiveSupport::TestCase
       out, err, status = Open3.capture3({ "SAVE_ME_CONFIG" => config, "PATH" => "#{tools}:/usr/bin:/bin" }, LAUNCHER, "setup")
 
       assert status.success?, err
-      assert_includes out, "Ingest token (paste it into the extension's settings): a b=c"
+      assert_includes out, "paste this ingest token into its settings: a b=c"
       assert_includes File.read(config), "CLAUDE_BIN=#{tools}/claude\n"
 
       out, err, status = Open3.capture3({ "SAVE_ME_CONFIG" => config, "PATH" => ENV["PATH"] }, LAUNCHER,

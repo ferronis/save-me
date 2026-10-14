@@ -66,7 +66,7 @@ Pinterest is not supported yet.
 
 ```bash
 brew install --HEAD ferronis/tap/save-me
-save-me setup                  # finds Claude Code and prints your ingest token
+save-me setup                  # finds Claude Code so the service can classify
 brew services start save-me    # runs Save Me now and every time you log in
 ```
 
@@ -82,7 +82,7 @@ To upgrade, run `brew upgrade --fetch-HEAD save-me` and then `brew services rest
 2. Open `chrome://extensions` and turn on **Developer mode** (top right).
 3. Click **Load unpacked** and choose the `extension/` folder.
 4. Open any normal web page and click the Save Me toolbar icon. A panel slides in on the right. It can't open on Chrome's own pages, such as the new tab page.
-5. Click the gear in the panel. It opens the extension's settings page, which no website can read. Paste the ingest token from `save-me setup`, and if you use Instagram, add your username too.
+5. The panel connects to Save Me on its own: the extension asks the server for its ingest token, and the server only gives it to an extension. If you use Instagram or TikTok, click the gear and add your username. The settings page also has the token field, for a server the extension can't reach on its own; `save-me setup` prints the token.
 
 ### 3. First sync
 
@@ -169,7 +169,7 @@ Adding a platform usually means three things: a rule in `hook.js` for which resp
 ## Troubleshooting
 
 - **A sync window sits on the same posts.** Make sure it isn't minimized or covered by another full-screen app. Threads in particular can take 10 seconds or more to load the next page. The window gives up after about 30 seconds with nothing new.
-- **"Token rejected. Check settings."** The token in the extension doesn't match `INGEST_TOKEN`. Run `save-me setup` to see it.
+- **"Token rejected. Check settings."** The extension fetches a new token on its own when the server's changes, so this means it couldn't. Make sure Save Me is running, or paste the token from `save-me setup` into the extension's settings.
 - **"Can't reach the server" or "Save Me isn't running."** Run `brew services start save-me`, or `bin/rails server` in a source checkout.
 - **Saves arrive but never get categories.** Check that `claude -p "hi"` works in a terminal, then run `save-me setup` again so the service knows where `claude` is. Classification errors show up in `$(brew --prefix)/var/log/save-me.log`, or `log/development.log` in a source checkout.
 - **Clicking the toolbar icon shows "Chrome doesn't let extensions draw on its own pages."** You're on a Chrome page like the new tab page. The sync panel opens on any website, so switch to one. The popup can also open the viewer or settings.

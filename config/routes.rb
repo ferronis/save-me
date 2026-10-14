@@ -4,6 +4,7 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       post "ingest", to: "ingest#create"
+      post "extension_token", to: "extension_tokens#create"
       get "categories", to: "saves#categories"
       get "platforms", to: "saves#platforms"
       get "platform_syncs", to: "saves#platform_syncs"

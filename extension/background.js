@@ -12,13 +12,38 @@ async function settings() {
   return { ...DEFAULTS, ...(await chrome.storage.local.get(Object.keys(DEFAULTS))) };
 }
 
-async function ingest(platform, items) {
+// Asks the server for the ingest token, so it never has to be copied by
+// hand. The server only gives it to an extension (see
+// ExtensionTokensController).
+async function connect() {
+  const { serverUrl } = await settings();
+  try {
+    const response = await fetch(`${serverUrl}/api/v1/extension_token`, { method: "POST" });
+    if (!response.ok) return { ok: false, status: response.status };
+    const { token } = await response.json();
+    if (!token) return { ok: false };
+    await chrome.storage.local.set({ token });
+    return { ok: true };
+  } catch {
+    return { ok: false };
+  }
+}
+
+chrome.runtime.onInstalled.addListener(async () => {
+  const { token } = await settings();
+  if (!token) await connect();
+});
+
+async function ingest(platform, items, retried = false) {
   const { serverUrl, token } = await settings();
   const response = await fetch(`${serverUrl}/api/v1/ingest`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({ platform, items }),
   });
+  // A rejected token usually means the server was reinstalled with a new
+  // one. Fetch it again and retry once.
+  if (response.status === 401 && !retried && (await connect()).ok) return ingest(platform, items, true);
   if (!response.ok) throw new Error(`Server responded ${response.status}`);
   return response.json();
 }
@@ -231,6 +256,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
     });
     return;
+  }
+  if (message.type === "connect") {
+    connect().then(sendResponse);
+    return true;
   }
   if (message.type === "open-options") {
     chrome.runtime.openOptionsPage();

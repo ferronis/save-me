@@ -52,7 +52,7 @@ case "${1:-server}" in
     else
       echo "Claude Code isn't on your PATH. Install it and run \`claude\` once to sign in, then run \`save-me setup\` again." >&2
     fi
-    echo "Ingest token (paste it into the extension's settings): $INGEST_TOKEN"
+    echo "The extension connects to Save Me on its own. If it can't, paste this ingest token into its settings: $INGEST_TOKEN"
     ;;
   server)
     bin/rails db:prepare
