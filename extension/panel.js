@@ -222,7 +222,8 @@
     }
 
     .footer { padding-top: 10px; }
-    .footer .button { width: 100%; }
+    .footer { display: flex; gap: 8px; }
+    .footer .button { flex: 1; padding: 0 12px; }
 
     .link {
       padding: 0;
@@ -273,6 +274,7 @@
         </p>
         <div id="platforms"></div>
         <div class="row footer">
+          <button id="syncAll" class="button" type="button" title="Syncs every platform you've synced before, one at a time">Sync all</button>
           <button id="openViewer" class="button" type="button">Open Save Me</button>
         </div>
       </div>
@@ -288,6 +290,14 @@
   $("openSettings").addEventListener("click", openSettings);
   $("hintSettings").addEventListener("click", openSettings);
   $("openViewer").addEventListener("click", () => chrome.runtime.sendMessage({ type: "open-viewer" }));
+  $("syncAll").addEventListener("click", () => chrome.runtime.sendMessage({ type: "sync-all", platforms: syncAllPlatforms() }));
+
+  // Platforms you've synced before and that have what a sync needs, in panel
+  // order. One you've never used would only open a window onto a login page.
+  function syncAllPlatforms() {
+    return PLATFORMS.map(({ id }) => id).filter((id) =>
+      values.syncs?.[id]?.synced_at && (!USERNAME_SETTING[id] || values[USERNAME_SETTING[id]]));
+  }
   for (const button of root.querySelectorAll("[data-close]")) button.addEventListener("click", () => toggle());
 
   // Typing in the panel shouldn't trigger the site's keyboard shortcuts.
@@ -350,7 +360,7 @@
   }
 
   // Only whether a token exists is kept here, never the token itself.
-  const values = { hasToken: false, instagramUsername: "", tiktokUsername: "", statuses: {} };
+  const values = { hasToken: false, instagramUsername: "", tiktokUsername: "", statuses: {}, syncQueue: [] };
 
   function render() {
     const needsToken = !values.hasToken;
@@ -361,6 +371,9 @@
     const unavailable = offline || values.syncs === undefined;
     $("offlineHint").hidden = !offline;
     $("openViewer").disabled = unavailable;
+    // One sync at a time: each needs its own window, and Sync all tracks one.
+    const busy = PLATFORMS.some(({ id }) => values.statuses?.[id]?.running) || values.syncQueue.length > 0;
+    $("syncAll").disabled = needsToken || unavailable || busy || !syncAllPlatforms().length;
 
     for (const platform of PLATFORMS) {
       const card = cards[platform.id];
@@ -375,7 +388,7 @@
       line.classList.toggle("error", error);
       // Syncing while the server is down would crawl the whole page for nothing.
       const button = card.querySelector("button");
-      button.disabled = needsToken || unavailable || Boolean(status?.running);
+      button.disabled = needsToken || unavailable || busy;
       button.classList.toggle("spinning", Boolean(status?.running));
     }
   }
@@ -393,16 +406,18 @@
     if (changes.token) values.hasToken = Boolean(changes.token.newValue);
     if (changes.instagramUsername) values.instagramUsername = changes.instagramUsername.newValue ?? "";
     if (changes.tiktokUsername) values.tiktokUsername = changes.tiktokUsername.newValue ?? "";
+    if (changes.syncQueue) values.syncQueue = changes.syncQueue.newValue ?? [];
     if (changes.statuses) values.statuses = changes.statuses.newValue ?? {};
     render();
     if (finished) loadSyncs();
   };
 
   async function open() {
-    const stored = await chrome.storage.local.get(["token", "instagramUsername", "tiktokUsername", "statuses"]);
+    const stored = await chrome.storage.local.get(["token", "instagramUsername", "tiktokUsername", "statuses", "syncQueue"]);
     values.hasToken = Boolean(stored.token);
     values.instagramUsername = stored.instagramUsername ?? "";
     values.tiktokUsername = stored.tiktokUsername ?? "";
+    values.syncQueue = stored.syncQueue ?? [];
     values.statuses = stored.statuses ?? {};
     render();
     document.documentElement.appendChild(host);

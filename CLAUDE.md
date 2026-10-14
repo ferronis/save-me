@@ -28,6 +28,7 @@ Neither Threads nor Instagram exposes saved posts through a public API, so the e
 - The first page of saves (about 20) is embedded in the HTML. Later pages come from `POST /graphql/query` as you scroll. Both carry `xdt_text_app_viewer.saved_media.edges[].node.thread_items[].post`.
 - The list is virtualized, so DOM scraping only ever sees about 5 posts. Use the JSON.
 - Threads does not fetch the next page while the tab is hidden, and a page can take well over 10 seconds even when visible. Syncs therefore run in their own focused popup window (opened at `/saved#save-me-sync`, which tells `relay.js` to start scrolling) and only give up after about 30 seconds without new content.
+- **Sync all** sends `sync-all` with the platforms you've synced before (that also have any username they need). `background.js` starts the first and keeps the rest in `syncQueue` in storage, so the queue survives the service worker stopping. The next one starts when a sync finishes, fails to start, or its window is closed by hand.
 - `background.js` parses with `threads.js` and posts to the ingest endpoint. Sync stops at the first payload with no new saves. On a first sync everything is new, so it runs to the end on its own. If the previous sync for a platform never finished, or browsing outside a sync brought in new saves (`needsFull`), the next one runs all the way through (`fullSync`) to fill any gap.
 - Threads does not expose when something was saved, so `saved_at` stays null. Multi-part self-threads ("1/3") arrive as the first post only.
 

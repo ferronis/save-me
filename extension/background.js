@@ -92,6 +92,82 @@ async function syncUrl(platform) {
   return `https://www.instagram.com/${encodeURIComponent(instagramUsername)}/saved/all-posts/#save-me-sync`;
 }
 
+// Sync all runs one platform at a time: each sync needs its own visible
+// window, so running them together would bury all but one. The rest wait in
+// storage, so the queue survives the service worker being stopped.
+//
+// Starting a sync, finishing one, and moving down the queue all run through
+// one lock. Otherwise a finish reported by the page and the user closing
+// the window at the same moment could each start the next platform, or a
+// window closed before its id was stored would never be seen as finished.
+let syncLock = Promise.resolve();
+function exclusive(task) {
+  const run = syncLock.then(task, task);
+  syncLock = run.catch(() => {});
+  return run;
+}
+
+async function busy() {
+  const { syncWindowId, syncQueue = [] } = await chrome.storage.local.get(["syncWindowId", "syncQueue"]);
+  return Boolean(syncWindowId) || syncQueue.length > 0;
+}
+
+function requestSync(platform, fullSync) {
+  return exclusive(async () => {
+    if (!(await busy())) await startSync(platform, fullSync);
+  });
+}
+
+function syncAll(platforms) {
+  return exclusive(async () => {
+    const [first, ...rest] = platforms;
+    if (!first || (await busy())) return;
+    await chrome.storage.local.set({ syncQueue: rest });
+    await startSync(first, false);
+  });
+}
+
+// Called with the lock held.
+async function syncNext() {
+  const { syncQueue = [] } = await chrome.storage.local.get("syncQueue");
+  const [next, ...rest] = syncQueue;
+  if (!next) return;
+  await chrome.storage.local.set({ syncQueue: rest });
+  await startSync(next, false);
+}
+
+// Ends the sync running in windowId, once: whichever of the page's
+// sync-done and the window closing arrives second finds nothing to end.
+function finishSync(windowId, statusPatch) {
+  return exclusive(async () => {
+    const { syncWindowId, syncPlatform } = await chrome.storage.local.get(["syncWindowId", "syncPlatform"]);
+    if (!syncWindowId || windowId !== syncWindowId) return false;
+    await chrome.storage.local.remove(["syncWindowId", "syncPlatform"]);
+    if (syncPlatform) await recordStatus(syncPlatform, statusPatch);
+    await syncNext();
+    return true;
+  });
+}
+
+// A sync can't survive the service worker starting fresh. After an extension
+// update or reload, its window's relay.js is cut off and can't report
+// sync-done, and after Chrome restarts, window ids no longer match. So at
+// startup and install, close any leftover sync window and mark its platform
+// stopped, with a full sync next time, and drop the queue it was in.
+function clearStaleSyncs() {
+  return exclusive(async () => {
+    const { syncWindowId, statuses = {} } = await chrome.storage.local.get(["syncWindowId", "statuses"]);
+    await chrome.storage.local.remove(["syncWindowId", "syncPlatform", "syncQueue"]);
+    if (syncWindowId) await chrome.windows.remove(syncWindowId).catch(() => {});
+    for (const [platform, status] of Object.entries(statuses)) {
+      if (status.running) await recordStatus(platform, { running: false, needsFull: true });
+    }
+  });
+}
+
+chrome.runtime.onStartup.addListener(clearStaleSyncs);
+chrome.runtime.onInstalled.addListener(clearStaleSyncs);
+
 async function startSync(platform, fullSync) {
   // A sync that never finished (window closed, browser quit) may have left
   // older saves behind, and an incremental sync would stop before reaching
@@ -110,7 +186,7 @@ async function startSync(platform, fullSync) {
   } catch (error) {
     // Keep the full-sync flag for the next attempt; this one never started.
     await recordStatus(platform, { running: false, error: error.message, needsFull: fullSync });
-    return;
+    return syncNext();
   }
 
   // Neither app loads more saves in a hidden tab, so the sync gets its own
@@ -119,10 +195,11 @@ async function startSync(platform, fullSync) {
   // the hash.
   try {
     const syncWindow = await chrome.windows.create({ url, type: "popup", width: 520, height: 900 });
-    await chrome.storage.local.set({ syncWindowId: syncWindow.id });
+    await chrome.storage.local.set({ syncWindowId: syncWindow.id, syncPlatform: platform });
   } catch (error) {
     // Otherwise the platform would show as syncing forever.
     await recordStatus(platform, { running: false, error: error.message, needsFull: fullSync });
+    return syncNext();
   }
 }
 
@@ -160,19 +237,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return;
   }
   if (message.type === "sync") {
-    startSync(message.platform, message.fullSync).then(() => sendResponse({ ok: true }));
+    requestSync(message.platform, message.fullSync).then(() => sendResponse({ ok: true }));
+    return true;
+  }
+  if (message.type === "sync-all") {
+    syncAll(message.platforms ?? []).then(() => sendResponse({ ok: true }));
     return true;
   }
   if (message.type === "sync-done") {
     (async () => {
       // A sync that couldn't start reading (no Favorites tab) reports why.
-      await recordStatus(message.platform, message.error ? { running: false, error: message.error } : { running: false });
-      const { syncWindowId } = await chrome.storage.local.get("syncWindowId");
+      const windowId = sender.tab?.windowId;
+      const finished = await finishSync(windowId, message.error ? { running: false, error: message.error } : { running: false });
       // Only close the window the sync itself opened.
-      if (sender.tab?.windowId === syncWindowId) {
-        await chrome.storage.local.remove("syncWindowId");
-        await chrome.windows.remove(syncWindowId);
-      }
+      if (finished) await chrome.windows.remove(windowId).catch(() => {});
     })();
   }
 });
@@ -194,4 +272,11 @@ chrome.action.onClicked.addListener((tab) => {
       await chrome.action.setPopup({ tabId: tab.id, popup: "" });
     }
   });
+});
+
+// Closing a sync window by hand ends that sync. Mark it stopped, with a full
+// sync next time since it may have left saves behind, and let Sync all move
+// on rather than wait for a window that is gone.
+chrome.windows.onRemoved.addListener((windowId) => {
+  finishSync(windowId, { running: false, needsFull: true, error: "Sync window was closed" });
 });
