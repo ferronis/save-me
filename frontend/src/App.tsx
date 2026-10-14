@@ -1,6 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
-import { fetchCategories, fetchSaves, updateSave, type Category, type Save, type Sort, type Status, type View } from './api'
+import {
+  fetchCategories,
+  fetchPlatforms,
+  fetchSaves,
+  updateSave,
+  type Category,
+  type PlatformCount,
+  type Save,
+  type Sort,
+  type Status,
+  type View,
+} from './api'
+import { PlatformIcon } from './components/PlatformIcon'
+import { platformName } from './platforms'
 import { SaveCard } from './components/SaveCard'
 import { useColumnCount } from './useColumnCount'
 
@@ -24,17 +37,19 @@ const SEARCH_DELAY_MS = 250
 export default function App() {
   const [view, setView] = useState<View>('next')
   const [category, setCategory] = useState<string | null>(null)
+  const [platform, setPlatform] = useState<string | null>(null)
   const [searchInput, setSearchInput] = useState('')
   const [query, setQuery] = useState('')
   const [sortChoice, setSortChoice] = useState<Sort>('priority')
   const sort: Sort = view === 'next' ? sortChoice : 'priority'
   // Results remember which selection they belong to, so "loading" is simply
   // "the results on screen are for a different selection".
-  const key = `${view}|${category ?? ''}|${query}|${sort}`
+  const key = `${view}|${category ?? ''}|${platform ?? ''}|${query}|${sort}`
   const [loadedKey, setLoadedKey] = useState<string | null>(null)
   const [saves, setSaves] = useState<Save[]>([])
   const [total, setTotal] = useState(0)
   const [categories, setCategories] = useState<Category[]>([])
+  const [platforms, setPlatforms] = useState<PlatformCount[]>([])
   const [error, setError] = useState<string | null>(null)
   const [grid, setGrid] = useState<HTMLElement | null>(null)
   const columnCount = useColumnCount(grid, COLUMN_WIDTH, GAP)
@@ -48,6 +63,7 @@ export default function App() {
 
   const loadCategories = useCallback(() => {
     fetchCategories().then(setCategories).catch(() => {})
+    fetchPlatforms().then(setPlatforms).catch(() => {})
   }, [])
 
   // Search as you type, once typing pauses.
@@ -58,8 +74,8 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false
-    const selection = `${view}|${category ?? ''}|${query}|${sort}`
-    fetchSaves(view, category, query, 0, sort)
+    const selection = `${view}|${category ?? ''}|${platform ?? ''}|${query}|${sort}`
+    fetchSaves(view, category, query, 0, sort, platform)
       .then((page) => {
         if (cancelled) return
         setSaves(page.items)
@@ -76,15 +92,15 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [view, category, query, sort])
+  }, [view, category, platform, query, sort])
 
   useEffect(loadCategories, [loadCategories])
 
   async function loadMore() {
     const started = generation.current
     try {
-      const page = await fetchSaves(view, category, query, saves.length, sort)
-      // Drop the page if the view, category, search, or sort changed meanwhile.
+      const page = await fetchSaves(view, category, query, saves.length, sort, platform)
+      // Drop the page if the view, filters, search, or sort changed meanwhile.
       if (started !== generation.current) return
       setSaves((current) => [...current, ...page.items])
       setTotal(page.total)
@@ -113,12 +129,17 @@ export default function App() {
     window.scrollTo({ top: 0 })
   }
 
+  function pickPlatform(name: string | null) {
+    setPlatform(name)
+    window.scrollTo({ top: 0 })
+  }
+
   // Deal saves across columns left to right, so the ranking reads across the
   // top row instead of down the first column.
   const columns: Save[][] = Array.from({ length: columnCount }, () => [])
   saves.forEach((save, index) => columns[index % columnCount].push(save))
 
-  const countLabel = `${total} ${total === 1 ? 'save' : 'saves'}${category ? ` in ${category}` : ''}${query ? ` matching “${query}”` : ''}`
+  const countLabel = `${total} ${total === 1 ? 'save' : 'saves'}${platform ? ` from ${platformName(platform)}` : ''}${category ? ` in ${category}` : ''}${query ? ` matching “${query}”` : ''}`
 
   return (
     <>
@@ -141,6 +162,32 @@ export default function App() {
                 className={`${view === v.id ? 'pill' : 'quiet'} px-3.5 py-1.5 text-left text-sm whitespace-nowrap`}
               >
                 {v.label}
+              </button>
+            ))}
+          </nav>
+          {/* Logos keep the networks to a couple of rows; the name is the label and tooltip. */}
+          <h2 className="text-soft mt-6 hidden px-2 text-xs font-semibold tracking-wide uppercase md:block">Networks</h2>
+          <nav aria-label="Networks" className="mt-2 flex flex-wrap gap-1">
+            <button
+              type="button"
+              aria-current={platform === null ? 'true' : undefined}
+              onClick={() => pickPlatform(null)}
+              className={`${platform === null ? 'pill' : 'quiet'} px-3 py-1 text-sm whitespace-nowrap`}
+            >
+              All
+            </button>
+            {platforms.map((p) => (
+              <button
+                key={p.name}
+                type="button"
+                aria-label={`${platformName(p.name)}, ${p.count}`}
+                title={platformName(p.name)}
+                aria-current={platform === p.name ? 'true' : undefined}
+                onClick={() => pickPlatform(p.name)}
+                className={`${platform === p.name ? 'pill' : 'quiet'} flex items-center gap-1.5 px-2.5 py-1 text-sm whitespace-nowrap`}
+              >
+                <PlatformIcon platform={p.name} />
+                <span className="tabular-nums opacity-60">{p.count}</span>
               </button>
             ))}
           </nav>

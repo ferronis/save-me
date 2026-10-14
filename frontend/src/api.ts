@@ -24,6 +24,7 @@ export type Save = {
 }
 
 export type Category = { name: string; count: number }
+export type PlatformCount = { name: string; count: number }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -34,9 +35,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export function fetchSaves(view: View, category: string | null, query = '', offset = 0, sort: Sort = 'priority') {
+export function fetchSaves(
+  view: View,
+  category: string | null,
+  query = '',
+  offset = 0,
+  sort: Sort = 'priority',
+  platform: string | null = null,
+) {
   const params = new URLSearchParams({ view, offset: String(offset) })
   if (category) params.set('category', category)
+  if (platform) params.set('platform', platform)
   if (query) params.set('q', query)
   if (sort === 'newest') params.set('sort', 'newest')
   return request<{ total: number; items: Save[] }>(`/api/v1/saves?${params}`)
@@ -44,6 +53,10 @@ export function fetchSaves(view: View, category: string | null, query = '', offs
 
 export function fetchCategories() {
   return request<Category[]>('/api/v1/categories')
+}
+
+export function fetchPlatforms() {
+  return request<PlatformCount[]>('/api/v1/platforms')
 }
 
 export function updateSave(id: number, status: Status, snoozedUntil?: Date) {

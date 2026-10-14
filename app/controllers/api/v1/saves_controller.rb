@@ -16,6 +16,7 @@ module Api
         # when something was saved, so posted_at is the date every save has.
         scope = scope.reorder(posted_at: :desc, id: :desc) if params[:sort] == "newest"
         scope = scope.in_category(params[:category]) if params[:category].present?
+        scope = scope.where(platform: params[:platform]) if params[:platform].present?
         scope = scope.search(params[:q]) if params[:q].present?
         offset = params[:offset].to_i.clamp(0, 1_000_000)
 
@@ -37,6 +38,12 @@ module Api
 
       def categories
         render json: SavedItem.active.category_counts.map { |name, count| { name: name, count: count } }
+      end
+
+      # Active saves per platform, most first, for the viewer's network filter.
+      def platforms
+        counts = SavedItem.active.group(:platform).count.sort_by { |name, count| [ -count, name ] }
+        render json: counts.map { |name, count| { name: name, count: count } }
       end
 
       def update

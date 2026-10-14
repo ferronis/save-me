@@ -5,6 +5,7 @@ Rails.application.routes.draw do
     namespace :v1 do
       post "ingest", to: "ingest#create"
       get "categories", to: "saves#categories"
+      get "platforms", to: "saves#platforms"
       get "platform_syncs", to: "saves#platform_syncs"
       resources :saves, only: [ :index, :update ] do
         get :thumbnail, on: :member

@@ -32,6 +32,8 @@ beforeEach(() => {
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const body = url.startsWith('/api/v1/categories')
       ? [{ name: 'AI & Coding', count: 2 }, { name: 'Design', count: 2 }]
+      : url.startsWith('/api/v1/platforms')
+      ? [{ name: 'threads', count: 2 }, { name: 'reddit', count: 1 }]
       : init?.method === 'PATCH'
         ? save(1, { status: 'done' })
         : { total: 2, items: [save(1), save(2)] }
@@ -107,12 +109,13 @@ test('searching sends the query once typing pauses', async () => {
 test('shows the platform as its logo', async () => {
   render(<App />)
   await screen.findByText('Summary 1')
-  expect(screen.getAllByRole('img', { name: 'Threads' })).toHaveLength(2)
+  const cards = screen.getAllByRole('article')
+  expect(cards.flatMap((card) => within(card).getAllByRole('img', { name: 'Threads' }))).toHaveLength(2)
 })
 
 test('shows an error when loading more fails', async () => {
   fetchMock.mockImplementation(async (url: string) => {
-    if (url.startsWith('/api/v1/categories')) return new Response('[]', { status: 200 })
+    if (url.startsWith('/api/v1/categories') || url.startsWith('/api/v1/platforms')) return new Response('[]', { status: 200 })
     if (url.includes('offset=2')) return new Response('{}', { status: 500 })
     return new Response(JSON.stringify({ total: 5, items: [save(1), save(2)] }), { status: 200 })
   })
@@ -131,7 +134,7 @@ test('shows an error when loading more fails', async () => {
 
 test('never renders a non-http link', async () => {
   fetchMock.mockImplementation(async (url: string) => {
-    if (url.startsWith('/api/v1/categories')) return new Response('[]', { status: 200 })
+    if (url.startsWith('/api/v1/categories') || url.startsWith('/api/v1/platforms')) return new Response('[]', { status: 200 })
     return new Response(JSON.stringify({ total: 1, items: [save(1, { permalink: 'javascript:alert(1)' })] }), { status: 200 })
   })
   render(<App />)
@@ -154,4 +157,16 @@ test('sorts do next by newest post when asked, and only offers it there', async 
   await userEvent.click(within(views).getByRole('button', { name: 'Done' }))
   expect(screen.queryByRole('group', { name: 'Sort' })).not.toBeInTheDocument()
   await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/v1/saves?view=done&offset=0', expect.anything()))
+})
+
+test('filters by network', async () => {
+  render(<App />)
+  await screen.findByText('Summary 1')
+  const networks = screen.getByRole('navigation', { name: 'Networks' })
+  await userEvent.click(within(networks).getByRole('button', { name: 'Reddit, 1' }))
+
+  await waitFor(() =>
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/saves?view=next&offset=0&platform=reddit', expect.anything()),
+  )
+  expect(within(networks).getByRole('button', { name: 'Reddit, 1' })).toHaveAttribute('aria-current', 'true')
 })

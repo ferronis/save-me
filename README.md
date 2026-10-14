@@ -16,7 +16,7 @@ Everything runs locally. There is no hosted service and no account to create.
 - **A "Do next" queue** ranked by priority. Saves with a deadline in the next week or month move up, and ones whose deadline has passed sink. Switch to **Newest** to see the most recent posts first instead.
 - **A suggested action for each save**, plus a summary and up to three categories.
 - **Done, Snooze, and Dismiss** to clear things out. Snoozed saves come back on their own.
-- **Search** across post text, summaries, next steps, authors, and categories.
+- **Search** across post text, summaries, next steps, authors, and categories, and filter by category or by network.
 - **A browser extension** that syncs each platform with one click.
 
 ## How it works

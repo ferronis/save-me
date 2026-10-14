@@ -56,7 +56,7 @@ Solid Queue lives in the primary database. Dev runs the worker inside Puma when 
 
 ## Browse UI
 
-`GET /api/v1/saves?view=next|snoozed|done|dismissed&category=&offset=` (50 per page), `GET /api/v1/categories`, `PATCH /api/v1/saves/:id` with `status` (and `snoozed_until` when snoozing), and `GET /api/v1/saves/:id/thumbnail`. No auth: local and single-user.
+`GET /api/v1/saves?view=next|snoozed|done|dismissed&category=&platform=&offset=` (50 per page), `GET /api/v1/categories`, `GET /api/v1/platforms` (active saves per platform, most first), `PATCH /api/v1/saves/:id` with `status` (and `snoozed_until` when snoozing), and `GET /api/v1/saves/:id/thumbnail`. No auth: local and single-user.
 
 - A save has 1-3 `categories` (JSON array, queried with `json_each`); the first is the main one. Filter with `SavedItem.in_category`. Search uses SQLite `LIKE`, which ignores case for ASCII letters only.
 - "Do next" is `SavedItem.active.by_urgency`: priority, plus 20 when a deadline is within 7 days or 10 within 30, and capped at 10 once the deadline has passed. Snoozed saves rejoin it on their own when `snoozed_until` passes; nothing flips their status back.

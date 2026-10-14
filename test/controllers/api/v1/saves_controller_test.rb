@@ -55,6 +55,25 @@ class Api::V1::SavesControllerTest < ActionDispatch::IntegrationTest
     assert_empty ids_in("next", category: "Pot")
   end
 
+  test "filters by platform, alongside a category" do
+    save("t1", categories: [ "Pottery" ])
+    SavedItem.create!(platform: "reddit", external_id: "r1", text: "r1", categories: [ "Pottery" ])
+    SavedItem.create!(platform: "reddit", external_id: "r2", text: "r2", categories: [ "AI & Coding" ])
+
+    assert_equal %w[r1 r2], ids_in("next", platform: "reddit").sort
+    assert_equal %w[r1], ids_in("next", platform: "reddit", category: "Pottery")
+  end
+
+  test "counts active saves per platform, most first" do
+    save("a")
+    save("b")
+    save("c", status: "done")
+    SavedItem.create!(platform: "reddit", external_id: "r1", text: "r1")
+
+    get "/api/v1/platforms"
+    assert_equal [ { "name" => "threads", "count" => 2 }, { "name" => "reddit", "count" => 1 } ], response.parsed_body
+  end
+
   test "counts categories across active saves only" do
     save("a", categories: [ "Pottery", "Apps & Tools" ])
     save("b", categories: [ "Pottery" ])
