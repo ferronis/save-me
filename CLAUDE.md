@@ -61,7 +61,7 @@ Solid Queue lives in the primary database. Dev runs the worker inside Puma when 
 
 ## Install
 
-`packaging/homebrew/save-me.rb` is the Homebrew formula (published in the `ferronis/homebrew-tap` repo). It builds the SPA, bundles gems without the dev/test groups, links `storage/` to `var/save-me` so data survives upgrades, and writes `etc/save-me.env` with a random `INGEST_TOKEN` and `SECRET_KEY_BASE` on first install. `bin/save-me` runs the app in production from that file; `save-me setup` records `CLAUDE_BIN`, since `brew services` starts with a bare `PATH`. Production binds to 127.0.0.1, serves plain http, and allows only localhost hosts (DNS rebinding protection, since the API has no auth). `saves:import_postgres` moves data over from the old Postgres version.
+`packaging/homebrew/save-me.rb` is the Homebrew formula (published in the `ferronis/homebrew-tap` repo). It builds the SPA, bundles gems without the dev/test groups, and links `storage/` to `var/save-me` so data survives upgrades. `bin/save-me` runs the app in production from `etc/save-me.env`, which it creates on first run with a random `INGEST_TOKEN` and `SECRET_KEY_BASE`. It reads that file as plain `KEY=value` lines, never sourcing it, so values with spaces need no quoting; `save-me setup` records `CLAUDE_BIN`, since `brew services` starts with a bare `PATH`. Production binds to 127.0.0.1, serves plain http, and allows only localhost hosts (DNS rebinding protection, since the API has no auth). `saves:import_postgres` moves data over from the old Postgres version.
 
 ## Not built yet
 

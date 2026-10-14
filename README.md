@@ -88,10 +88,6 @@ The first sync pulls everything. Later syncs stop as soon as they reach posts th
 
 New saves are classified in the background, about 25 seconds per 20 saves, three batches at a time. A large first sync can take a few minutes to classify. To work through a backlog in the foreground instead, run `save-me saves:classify`.
 
-### Upgrading from the Postgres version
-
-Save Me stored saves in Postgres before it moved to SQLite. To bring them over, start from an empty database and run `save-me saves:import_postgres` (or `bin/rails saves:import_postgres` in a source checkout). It reads `save_me_development` with `psql`; pass another database name as `save-me 'saves:import_postgres[name]'`, quoted so zsh doesn't read the brackets as a file pattern. Ids are kept, so copy your old `storage/thumbnails/development/` folder into `$(brew --prefix)/var/save-me/thumbnails/production/` to keep the images.
-
 ## Configuration
 
 Settings live in `$(brew --prefix)/etc/save-me.env`, or `.env` in a source checkout. Restart the server after changing them.

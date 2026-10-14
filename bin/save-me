@@ -23,10 +23,21 @@ CLASSIFIER_EFFORT=low
 CLASSIFIER_INTERESTS=
 EOS
 fi
-set -a
-# shellcheck source=/dev/null
-. "$config"
-set +a
+# Read KEY=value lines as plain text rather than sourcing the file, so a value
+# with spaces, such as CLASSIFIER_INTERESTS, needs no shell quoting. A value
+# may still be wrapped in matching quotes.
+while IFS= read -r line || [ -n "$line" ]; do
+  case "$line" in *=*) ;; *) continue ;; esac
+  key=${line%%=*}
+  value=${line#*=}
+  # Skip comments and anything that isn't a valid variable name.
+  case "$key" in '' | [!A-Za-z_]* | *[!A-Za-z0-9_]*) continue ;; esac
+  case "$value" in
+    \"*\") value=${value#\"}; value=${value%\"} ;;
+    \'*\') value=${value#\'}; value=${value%\'} ;;
+  esac
+  export "$key=$value"
+done < "$config"
 export RAILS_ENV=production
 
 case "${1:-server}" in
@@ -35,8 +46,7 @@ case "${1:-server}" in
     # lives while we're in the user's own shell.
     if claude_bin="$(command -v claude)"; then
       grep -v '^CLAUDE_BIN=' "$config" > "$config.tmp" || true
-      # %q keeps a path with spaces a single word when the file is sourced.
-      printf 'CLAUDE_BIN=%q\n' "$claude_bin" >> "$config.tmp"
+      printf 'CLAUDE_BIN=%s\n' "$claude_bin" >> "$config.tmp"
       mv "$config.tmp" "$config"
       echo "Claude Code: $claude_bin"
     else
