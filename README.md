@@ -13,7 +13,7 @@ Everything runs locally. There is no hosted service and no account to create.
 ## What you get
 
 - **One feed of every save**, laid out like Threads cards: post text, a large image, the author, and when it was posted.
-- **A "Do next" queue** ranked by priority. Saves with a deadline in the next week or month move up, and ones whose deadline has passed sink.
+- **A "Do next" queue** ranked by priority. Saves with a deadline in the next week or month move up, and ones whose deadline has passed sink. Switch to **Newest** to see the most recent posts first instead.
 - **A suggested action for each save**, plus a summary and up to three categories.
 - **Done, Snooze, and Dismiss** to clear things out. Snoozed saves come back on their own.
 - **Search** across post text, summaries, next steps, authors, and categories.
@@ -68,7 +68,9 @@ save-me setup                  # finds Claude Code and prints your ingest token
 brew services start save-me    # runs Save Me now and every time you log in
 ```
 
-Open [http://localhost:3080](http://localhost:3080) for the viewer. One background service runs the server, the viewer, and the classifier. Your saves and cached thumbnails are kept in `$(brew --prefix)/var/save-me`, and settings in `$(brew --prefix)/etc/save-me.env`.
+Open [http://localhost:3080](http://localhost:3080) for the viewer, or click **Open Save Me** in the extension's panel. One background service runs the server, the viewer, and the classifier.
+
+To launch Save Me like any other app, open the viewer in Chrome and choose **Install Save Me** from the install icon at the right of the address bar (or ⋮ › Cast, save, and share › Install page as app). It appears in Applications, Launchpad, and Spotlight with its own icon and window. In Safari, use File › Add to Dock. Your saves and cached thumbnails are kept in `$(brew --prefix)/var/save-me`, and settings in `$(brew --prefix)/etc/save-me.env`.
 
 To upgrade, run `brew upgrade --fetch-HEAD save-me` and then `brew services restart save-me`.
 
@@ -166,7 +168,7 @@ Adding a platform usually means three things: a rule in `hook.js` for which resp
 
 - **A sync window sits on the same posts.** Make sure it isn't minimized or covered by another full-screen app. Threads in particular can take 10 seconds or more to load the next page. The window gives up after about 30 seconds with nothing new.
 - **"Token rejected. Check settings."** The token in the extension doesn't match `INGEST_TOKEN`. Run `save-me setup` to see it.
-- **"Can't reach the server."** Run `brew services start save-me`, or `bin/rails server` in a source checkout.
+- **"Can't reach the server" or "Save Me isn't running."** Run `brew services start save-me`, or `bin/rails server` in a source checkout.
 - **Saves arrive but never get categories.** Check that `claude -p "hi"` works in a terminal, then run `save-me setup` again so the service knows where `claude` is. Classification errors show up in `$(brew --prefix)/var/log/save-me.log`, or `log/development.log` in a source checkout.
 - **The toolbar icon does nothing.** You're on a Chrome page like the new tab page, where extensions can't draw. Switch to any website.
 

@@ -139,3 +139,19 @@ test('never renders a non-http link', async () => {
   expect(screen.queryByRole('link', { name: /open/i })).not.toBeInTheDocument()
   expect(document.querySelector('a[href^="javascript"]')).toBeNull()
 })
+
+test('sorts do next by newest post when asked, and only offers it there', async () => {
+  render(<App />)
+  await screen.findByText('Summary 1')
+  await userEvent.click(screen.getByRole('button', { name: 'Newest' }))
+
+  await waitFor(() =>
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/saves?view=next&offset=0&sort=newest', expect.anything()),
+  )
+  expect(screen.getByRole('button', { name: 'Newest' })).toHaveAttribute('aria-pressed', 'true')
+
+  const views = screen.getByRole('navigation', { name: 'Views' })
+  await userEvent.click(within(views).getByRole('button', { name: 'Done' }))
+  expect(screen.queryByRole('group', { name: 'Sort' })).not.toBeInTheDocument()
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/v1/saves?view=done&offset=0', expect.anything()))
+})

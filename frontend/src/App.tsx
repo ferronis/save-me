@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
-import { fetchCategories, fetchSaves, updateSave, type Category, type Save, type Status, type View } from './api'
+import { fetchCategories, fetchSaves, updateSave, type Category, type Save, type Sort, type Status, type View } from './api'
 import { SaveCard } from './components/SaveCard'
 import { useColumnCount } from './useColumnCount'
 
@@ -9,6 +9,12 @@ const VIEWS: { id: View; label: string }[] = [
   { id: 'snoozed', label: 'Snoozed' },
   { id: 'done', label: 'Done' },
   { id: 'dismissed', label: 'Dismissed' },
+]
+
+// Only "Do next" is ranked by priority, so the sort switch shows there alone.
+const SORTS: { id: Sort; label: string }[] = [
+  { id: 'priority', label: 'Priority' },
+  { id: 'newest', label: 'Newest' },
 ]
 
 const COLUMN_WIDTH = 360
@@ -20,9 +26,11 @@ export default function App() {
   const [category, setCategory] = useState<string | null>(null)
   const [searchInput, setSearchInput] = useState('')
   const [query, setQuery] = useState('')
+  const [sortChoice, setSortChoice] = useState<Sort>('priority')
+  const sort: Sort = view === 'next' ? sortChoice : 'priority'
   // Results remember which selection they belong to, so "loading" is simply
   // "the results on screen are for a different selection".
-  const key = `${view}|${category ?? ''}|${query}`
+  const key = `${view}|${category ?? ''}|${query}|${sort}`
   const [loadedKey, setLoadedKey] = useState<string | null>(null)
   const [saves, setSaves] = useState<Save[]>([])
   const [total, setTotal] = useState(0)
@@ -50,8 +58,8 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false
-    const selection = `${view}|${category ?? ''}|${query}`
-    fetchSaves(view, category, query)
+    const selection = `${view}|${category ?? ''}|${query}|${sort}`
+    fetchSaves(view, category, query, 0, sort)
       .then((page) => {
         if (cancelled) return
         setSaves(page.items)
@@ -68,15 +76,15 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [view, category, query])
+  }, [view, category, query, sort])
 
   useEffect(loadCategories, [loadCategories])
 
   async function loadMore() {
     const started = generation.current
     try {
-      const page = await fetchSaves(view, category, query, saves.length)
-      // Drop the page if the view, category, or search changed meanwhile.
+      const page = await fetchSaves(view, category, query, saves.length, sort)
+      // Drop the page if the view, category, search, or sort changed meanwhile.
       if (started !== generation.current) return
       setSaves((current) => [...current, ...page.items])
       setTotal(page.total)
@@ -164,8 +172,8 @@ export default function App() {
         <main className="min-w-0 flex-1">
           {/* Pinned while the cards scroll underneath; the count lives inside so
               nothing loose floats over the cards. */}
-          <div className="sticky top-4 z-20 md:top-6">
-            <label className="slab search flex h-12 w-full max-w-2xl items-center gap-2.5 px-5">
+          <div className="sticky top-4 z-20 flex flex-wrap items-center gap-3 md:top-6">
+            <label className="slab search flex h-12 w-full max-w-2xl min-w-0 flex-1 items-center gap-2.5 px-5">
               <Search className="text-soft size-4 shrink-0" aria-hidden />
               <input
                 type="search"
@@ -179,6 +187,21 @@ export default function App() {
                 {loading ? 'Loading…' : countLabel}
               </span>
             </label>
+            {view === 'next' && (
+              <div role="group" aria-label="Sort" className="slab flex h-12 shrink-0 items-center gap-1 px-1.5">
+                {SORTS.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    aria-pressed={sortChoice === s.id}
+                    onClick={() => setSortChoice(s.id)}
+                    className={`${sortChoice === s.id ? 'pill' : 'quiet'} px-3.5 py-1.5 text-sm whitespace-nowrap`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {error && <p className="slab mt-4 px-5 py-3 text-sm font-semibold">{error}</p>}

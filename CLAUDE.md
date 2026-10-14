@@ -18,6 +18,8 @@ No CORS config: the Chrome extension calls the server from its service worker wi
 
 There is no popup. Clicking the toolbar icon injects `panel.js` into the current page (`activeTab` + `scripting`), which toggles a frosted-glass panel in a closed shadow root. It has to live in the page because an extension popup is an opaque window, so real glass is impossible there. Styles go through a constructed stylesheet so strict page CSPs don't block them. The panel can't call the server itself (page CORS), so it asks `background.js` (`platform-syncs` message), which reads `GET /api/v1/platform_syncs`: saves per platform and when each last synced (`platform_syncs` table, touched on every ingest). Chrome's own pages refuse injection, so the icon does nothing there.
 
+The panel's "Open Save Me" button sends `open-viewer`, and `background.js` focuses an existing viewer tab or opens one. When `platform-syncs` comes back null, the server is unreachable: the panel shows how to start it and disables that button.
+
 Settings (server URL, ingest token, Instagram username) live on the extension's options page (`options.html`), never in the panel. The panel runs inside arbitrary web pages, and a hostile page can capture even a closed shadow root by patching `attachShadow` before injection. So the panel only ever learns *whether* a token exists, and its gear sends `open-options` to `background.js`. Keep the token out of the panel.
 
 Neither Threads nor Instagram exposes saved posts through a public API, so the extension captures what each web app already loads; Bluesky uses the same approach for consistency. For Threads:
@@ -53,6 +55,8 @@ Solid Queue lives in the primary database. Dev runs the worker inside Puma when 
 
 - A save has 1-3 `categories` (JSON array, queried with `json_each`); the first is the main one. Filter with `SavedItem.in_category`. Search uses SQLite `LIKE`, which ignores case for ASCII letters only.
 - "Do next" is `SavedItem.active.by_urgency`: priority, plus 20 when a deadline is within 7 days or 10 within 30, and capped at 10 once the deadline has passed. Snoozed saves rejoin it on their own when `snoozed_until` passes; nothing flips their status back.
+- `sort=newest` reorders any view by `posted_at` (newest first). The viewer offers it on "Do next" only. Every platform except Bluesky leaves `saved_at` null, so posting date is the only date every save has.
+- The viewer is an installable web app (`frontend/public/manifest.webmanifest` plus icons; `config/initializers/mime_types.rb` serves the manifest as `application/manifest+json`). Chrome installs it into `~/Applications`, and Safari adds it to the Dock.
 - Platform CDN image links are signed and expire, so `CacheThumbnailsJob` copies each save's first image to `storage/thumbnails/<env>/<id>.jpg` after ingest. `bin/rails saves:thumbnails` backfills.
 - Permalinks must be `http(s)` (model validation), and the viewer renders only `http(s)` links (`safeHref`): a stored `javascript:` URL would run in the viewer's origin, which can call the unauthenticated saves API.
 - The inflection `save`/`saves` is irregular on purpose; without it Rails singularizes `saves` to `safe`.

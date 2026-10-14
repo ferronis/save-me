@@ -23,6 +23,15 @@ class Api::V1::SavesControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "sorts do next by posting date when asked" do
+    save("old_urgent", priority: 90, posted_at: Time.utc(2026, 8, 1))
+    save("new_plain", priority: 10, posted_at: Time.utc(2026, 10, 1))
+    save("undated", priority: 50, posted_at: nil)
+
+    assert_equal %w[old_urgent undated new_plain], ids_in("next")
+    assert_equal %w[new_plain old_urgent undated], ids_in("next", sort: "newest")
+  end
+
   test "views split by status, and expired snoozes come back to do next" do
     save("inbox")
     save("done", status: "done")

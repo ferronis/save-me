@@ -12,6 +12,9 @@ module Api
 
       def index
         scope = VIEWS.fetch(params[:view].to_s, VIEWS["next"]).call
+        # Newest by posting date. None of the platforms except Bluesky says
+        # when something was saved, so posted_at is the date every save has.
+        scope = scope.reorder(posted_at: :desc, id: :desc) if params[:sort] == "newest"
         scope = scope.in_category(params[:category]) if params[:category].present?
         scope = scope.search(params[:q]) if params[:q].present?
         offset = params[:offset].to_i.clamp(0, 1_000_000)

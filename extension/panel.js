@@ -195,6 +195,14 @@
       color: var(--ink-soft);
     }
 
+    .hint code {
+      font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: var(--ink);
+    }
+
+    .footer { padding-top: 12px; }
+    .footer .button { width: 100%; }
+
     .link {
       padding: 0;
       border: 0;
@@ -237,7 +245,13 @@
         <p id="setupHint" class="hint" hidden>
           Add your ingest token in <button type="button" class="link" id="hintSettings">settings</button> to start syncing.
         </p>
+        <p id="offlineHint" class="hint" hidden>
+          Save Me isn't running. Start it with <code>brew services start save-me</code>.
+        </p>
         <div id="platforms"></div>
+        <div class="row footer">
+          <button id="openViewer" class="button" type="button">Open Save Me</button>
+        </div>
       </div>
 
     </div>
@@ -250,6 +264,7 @@
   const openSettings = () => chrome.runtime.sendMessage({ type: "open-options" });
   $("openSettings").addEventListener("click", openSettings);
   $("hintSettings").addEventListener("click", openSettings);
+  $("openViewer").addEventListener("click", () => chrome.runtime.sendMessage({ type: "open-viewer" }));
   for (const button of root.querySelectorAll("[data-close]")) button.addEventListener("click", () => toggle());
 
   // Typing in the panel shouldn't trigger the site's keyboard shortcuts.
@@ -310,6 +325,12 @@
   function render() {
     const needsToken = !values.hasToken;
     $("setupHint").hidden = !needsToken;
+    // platform-syncs answers null when the server can't be reached, and
+    // values.syncs is undefined until that first answer arrives.
+    const offline = values.syncs === null;
+    const unavailable = offline || values.syncs === undefined;
+    $("offlineHint").hidden = !offline;
+    $("openViewer").disabled = unavailable;
 
     for (const platform of PLATFORMS) {
       const card = cards[platform.id];
@@ -321,14 +342,15 @@
       const line = card.querySelector(".status");
       line.textContent = text;
       line.classList.toggle("error", error);
-      for (const button of card.querySelectorAll("button")) button.disabled = needsToken || Boolean(status?.running);
+      // Syncing while the server is down would crawl the whole page for nothing.
+      for (const button of card.querySelectorAll("button")) button.disabled = needsToken || unavailable || Boolean(status?.running);
     }
   }
 
   // Last-sync times come from the server, so they're right even for syncs
   // from before this panel existed. Refreshed when a sync finishes.
   async function loadSyncs() {
-    values.syncs = (await chrome.runtime.sendMessage({ type: "platform-syncs" })) ?? undefined;
+    values.syncs = (await chrome.runtime.sendMessage({ type: "platform-syncs" })) ?? null;
     render();
   }
 

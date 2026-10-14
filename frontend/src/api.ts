@@ -1,4 +1,5 @@
 export type View = 'next' | 'snoozed' | 'done' | 'dismissed'
+export type Sort = 'priority' | 'newest'
 export type Status = 'inbox' | 'done' | 'dismissed' | 'snoozed'
 
 export type Save = {
@@ -33,10 +34,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export function fetchSaves(view: View, category: string | null, query = '', offset = 0) {
+export function fetchSaves(view: View, category: string | null, query = '', offset = 0, sort: Sort = 'priority') {
   const params = new URLSearchParams({ view, offset: String(offset) })
   if (category) params.set('category', category)
   if (query) params.set('q', query)
+  if (sort === 'newest') params.set('sort', 'newest')
   return request<{ total: number; items: Save[] }>(`/api/v1/saves?${params}`)
 }
 

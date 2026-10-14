@@ -123,6 +123,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .then(sendResponse);
     return true;
   }
+  if (message.type === "open-viewer") {
+    // Reuse a viewer tab if one is open, so the button doesn't pile up tabs.
+    settings().then(async ({ serverUrl }) => {
+      const [tab] = await chrome.tabs.query({ url: `${serverUrl}/*` }).catch(() => []);
+      if (tab) {
+        await chrome.tabs.update(tab.id, { active: true });
+        await chrome.windows.update(tab.windowId, { focused: true });
+      } else {
+        await chrome.tabs.create({ url: `${serverUrl}/` });
+      }
+    });
+    return;
+  }
   if (message.type === "open-options") {
     chrome.runtime.openOptionsPage();
     return;
