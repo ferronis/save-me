@@ -47,7 +47,7 @@ Everything runs locally. There is no hosted service and no account to create.
 | Instagram | `instagram.com/<you>/saved/all-posts/` | Needs your username in the extension's settings. Reels, carousels, and saved ads all come through. |
 | Bluesky   | `bsky.app/saved`                   | Uses Bluesky's official bookmarks endpoint. The only platform that records *when* you saved something. |
 | X         | `x.com/i/bookmarks`                | Photos, video, and long posts. |
-| Reddit    | `old.reddit.com/saved`             | Saved posts and comments. Uses old Reddit, whose pages are simpler and more stable than the new site's. |
+| Reddit    | `old.reddit.com/saved`             | Saved posts and comments. Uses old Reddit, whose pages are simpler and more stable than the new site's. Browsing picks up saves only on old.reddit.com, not www.reddit.com. |
 
 Pinterest is not supported yet.
 

@@ -22,12 +22,20 @@ window.addEventListener("message", (event) => {
 });
 
 if (SYNCING) window.addEventListener("load", PLATFORM === "reddit" ? syncRedditPage : autoscroll);
+// The other platforms are captured on any visit through the responses hook.js
+// forwards. Old Reddit renders saves into the HTML instead, so read the page
+// when you open your saved list yourself.
+else if (PLATFORM === "reddit" && /^\/(user\/[^/]+\/)?saved\/?$/.test(location.pathname)) {
+  window.addEventListener("load", () => {
+    const things = readRedditThings();
+    if (!things.length) return;
+    chrome.runtime.sendMessage({ type: "payload", platform: PLATFORM, text: JSON.stringify(things) }).catch(() => {});
+  });
+}
 
-// Old Reddit renders saved items into the page and paginates with a "next"
-// link instead of loading more as you scroll. Read this page's items, then
-// follow "next" like a reader would, until a page has nothing new.
-async function syncRedditPage() {
-  const things = [...document.querySelectorAll("#siteTable > .thing[data-fullname]")].map((el) => ({
+// The saved items old Reddit rendered into this page.
+function readRedditThings() {
+  return [...document.querySelectorAll("#siteTable > .thing[data-fullname]")].map((el) => ({
     fullname: el.dataset.fullname,
     permalink: el.dataset.permalink,
     author: el.dataset.author,
@@ -38,6 +46,13 @@ async function syncRedditPage() {
     body: el.querySelector(".usertext-body .md")?.innerText?.trim() ?? null,
     thumbnail: el.querySelector("a.thumbnail img")?.getAttribute("src") ?? el.dataset.thumbnail ?? null,
   }));
+}
+
+// Old Reddit paginates with a "next" link instead of loading more as you
+// scroll. Read this page's items, then follow "next" like a reader would,
+// until a page has nothing new.
+async function syncRedditPage() {
+  const things = readRedditThings();
 
   const result = things.length
     ? await chrome.runtime.sendMessage({ type: "payload", platform: PLATFORM, text: JSON.stringify(things) }).catch(() => null)

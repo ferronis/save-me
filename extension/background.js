@@ -49,6 +49,10 @@ async function ingestPage(platform, items) {
       created: (current.created ?? 0) + result.created,
       seen: (current.seen ?? 0) + items.length,
       error: result.errors.length ? `${result.errors.length} items rejected` : null,
+      // New saves from browsing, outside a sync, can sit above older ones that
+      // were never synced. An incremental sync would stop at them, so the next
+      // sync goes all the way through.
+      ...(!current.running && result.created > 0 ? { needsFull: true } : {}),
     }));
     // Each platform carries its own full-sync flag, so a normal sync started
     // on one platform can't cut short a full sync running on another.
@@ -81,16 +85,18 @@ async function syncUrl(platform) {
 async function startSync(platform, fullSync) {
   // A sync that never finished (window closed, browser quit) may have left
   // older saves behind, and an incremental sync would stop before reaching
-  // them. So the next one after it goes all the way through.
+  // them. So the next one after it goes all the way through. The same goes
+  // after browsing brought in new saves (needsFull, set in ingestPage).
   const { statuses = {} } = await chrome.storage.local.get("statuses");
-  if (statuses[platform]?.running) fullSync = true;
-  await recordStatus(platform, { created: 0, seen: 0, error: null, running: true, fullSync });
+  if (statuses[platform]?.running || statuses[platform]?.needsFull) fullSync = true;
+  await recordStatus(platform, { created: 0, seen: 0, error: null, running: true, fullSync, needsFull: false });
 
   let url;
   try {
     url = await syncUrl(platform);
   } catch (error) {
-    await recordStatus(platform, { running: false, error: error.message });
+    // Keep the full-sync flag for the next attempt; this one never started.
+    await recordStatus(platform, { running: false, error: error.message, needsFull: fullSync });
     return;
   }
 
@@ -103,7 +109,7 @@ async function startSync(platform, fullSync) {
     await chrome.storage.local.set({ syncWindowId: syncWindow.id });
   } catch (error) {
     // Otherwise the platform would show as syncing forever.
-    await recordStatus(platform, { running: false, error: error.message });
+    await recordStatus(platform, { running: false, error: error.message, needsFull: fullSync });
   }
 }
 
