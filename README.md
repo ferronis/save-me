@@ -2,7 +2,7 @@
 
 You save posts so you can come back to them: a recipe, a tool to try, a class that closes registration next week. Then they sit in five different "Saved" tabs and you forget about them.
 
-Save Me pulls your saved posts from Threads, Instagram, Bluesky, X, and Reddit into one place on your own computer. It uses Claude to sort them into categories, write a one-line summary, and suggest a concrete next step for each ("Bake this overnight focaccia this weekend", "Install this CLI and try it on a side project"). The ones that are time-sensitive or most useful rise to the top.
+Save Me pulls your saved posts from Threads, Instagram, Bluesky, X, Reddit, YouTube, and TikTok into one place on your own computer. It uses Claude to sort them into categories, write a one-line summary, and suggest a concrete next step for each ("Bake this overnight focaccia this weekend", "Install this CLI and try it on a side project"). The ones that are time-sensitive or most useful rise to the top.
 
 Everything runs locally. There is no hosted service and no account to create.
 
@@ -48,6 +48,8 @@ Everything runs locally. There is no hosted service and no account to create.
 | Bluesky   | `bsky.app/saved`                   | Uses Bluesky's official bookmarks endpoint. The only platform that records *when* you saved something. |
 | X         | `x.com/i/bookmarks`                | Photos, video, and long posts. |
 | Reddit    | `old.reddit.com/saved`             | Saved posts and comments. Uses old Reddit, whose pages are simpler and more stable than the new site's. Browsing picks up saves only on old.reddit.com, not www.reddit.com. |
+| YouTube   | `youtube.com/playlist?list=WL`     | Watch Later, which is where the app's Save button goes by default. Upload dates are estimates from "3 years ago", which is all the list shows. Every sync reads the whole list. |
+| TikTok    | Favorites tab on `tiktok.com/@<you>` | Videos and photo posts you've favorited (the bookmark icon). Needs your username in the extension's settings. The tab has no address of its own, so a sync opens your profile and clicks it. |
 
 Pinterest is not supported yet.
 
@@ -109,7 +111,7 @@ Settings live in `$(brew --prefix)/etc/save-me.env`, or `.env` in a source check
 
 - Your saves, their images, and their classifications are stored only in a SQLite database and thumbnail folder on your computer.
 - To classify a save, Save Me sends its text, author, posted date, link, and image descriptions to Claude through your Claude Code CLI. Anthropic's terms for your Claude plan apply to that data. Images themselves are not sent.
-- The extension's capture scripts run only on the five supported sites, and only read what your saved pages load. Its panel appears on whatever page you open it on, and only when you click the toolbar icon. Nothing runs in the background except during a sync.
+- The extension's capture scripts run only on the seven supported sites, and only read what your saved pages load. Its panel appears on whatever page you open it on, and only when you click the toolbar icon. Nothing runs in the background except during a sync.
 - The viewer's API has no login, because it's meant to be reachable only from your own machine. Don't expose port 3080 or 3081 to a network you don't trust.
 
 ## A note on platform terms

@@ -12,13 +12,34 @@
     bluesky: { url: "app.bsky.bookmark.getBookmarks", text: '"bookmarks"', embedded: false },
     // X: the GraphQL Bookmarks timeline the bookmarks page loads as you scroll.
     x: { url: "/Bookmarks", text: "bookmark_timeline", embedded: false },
+    // YouTube: Watch Later's first page (window.ytInitialData) and the browse
+    // continuations it loads as you scroll. The same endpoint serves every
+    // page on YouTube, so only forward while Watch Later is open.
+    youtube: {
+      url: "/youtubei/v1/browse",
+      // Watch Later still uses playlistVideoRenderer; other playlists use lockups.
+      text: ["playlistVideoRenderer", "lockupViewModel"],
+      embedded: false,
+      initialData: "ytInitialData",
+      page: () => location.pathname === "/playlist" && new URLSearchParams(location.search).get("list") === "WL",
+    },
+    // TikTok: the Favorites tab on your profile.
+    tiktok: { url: "/api/user/collect/item_list", text: '"itemList"', embedded: false },
   };
   const host = location.hostname;
   const rule = RULES[
-    host.endsWith("instagram.com") ? "instagram" : host === "bsky.app" ? "bluesky" : host === "x.com" ? "x" : "threads"
+    host.endsWith("instagram.com") ? "instagram"
+    : host === "bsky.app" ? "bluesky"
+    : host === "x.com" ? "x"
+    : host.endsWith("youtube.com") ? "youtube"
+    : host.endsWith("tiktok.com") ? "tiktok"
+    : "threads"
   ];
   const send = (text) => window.postMessage({ source: "save-me-hook", text }, location.origin);
-  const forward = (text) => { if (text.includes(rule.text)) send(text); };
+  const forward = (text) => {
+    const marks = [rule.text].flat();
+    if (marks.some((mark) => text.includes(mark)) && (!rule.page || rule.page())) send(text);
+  };
 
   const originalFetch = window.fetch;
   window.fetch = async function (...args) {
@@ -42,6 +63,13 @@
     }
     return originalOpen.call(this, method, url, ...rest);
   };
+
+  if (rule.initialData) {
+    document.addEventListener("DOMContentLoaded", () => {
+      const data = window[rule.initialData];
+      if (data) forward(JSON.stringify(data));
+    });
+  }
 
   if (rule.embedded) {
     document.addEventListener("DOMContentLoaded", () => {

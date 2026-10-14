@@ -6,6 +6,8 @@ const PLATFORMS_BY_HOST = {
   "bsky.app": "bluesky",
   "x.com": "x",
   "old.reddit.com": "reddit",
+  "www.youtube.com": "youtube",
+  "www.tiktok.com": "tiktok",
 };
 const PLATFORM = PLATFORMS_BY_HOST[location.hostname];
 // Read at document_start, before the app's router can rewrite the URL.
@@ -21,7 +23,7 @@ window.addEventListener("message", (event) => {
   }).catch(() => {});
 });
 
-if (SYNCING) window.addEventListener("load", PLATFORM === "reddit" ? syncRedditPage : autoscroll);
+if (SYNCING) window.addEventListener("load", PLATFORM === "reddit" ? syncRedditPage : PLATFORM === "tiktok" ? syncTikTok : autoscroll);
 // The other platforms are captured on any visit through the responses hook.js
 // forwards. Old Reddit renders saves into the HTML instead, so read the page
 // when you open your saved list yourself.
@@ -65,6 +67,24 @@ async function syncRedditPage() {
   } else {
     chrome.runtime.sendMessage({ type: "sync-done", platform: PLATFORM }).catch(() => {});
   }
+}
+
+// TikTok has no address for the Favorites tab, so a sync opens your profile
+// and clicks it. Its list then loads as you scroll, like the others.
+async function syncTikTok() {
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  for (let i = 0; i < 20; i++) {
+    // Unlike the other profile tabs it has no data-e2e; its class names it.
+    const tab = document.querySelector('[role="tab"][class*="PFavorite"]') ??
+      [...document.querySelectorAll('[role="tab"]')].find((el) => el.textContent.trim() === "Favorites");
+    if (tab) {
+      tab.click();
+      await sleep(2000);
+      return autoscroll();
+    }
+    await sleep(1000);
+  }
+  chrome.runtime.sendMessage({ type: "sync-done", platform: PLATFORM, error: "Couldn't find the Favorites tab" }).catch(() => {});
 }
 
 async function autoscroll() {

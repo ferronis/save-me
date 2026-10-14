@@ -1,7 +1,7 @@
 // Settings page. It is an extension page, so unlike the in-page sync panel,
 // no website can read these fields.
-const FIELDS = ["serverUrl", "token", "instagramUsername"];
-const DEFAULTS = { serverUrl: "http://localhost:3080", token: "", instagramUsername: "" };
+const FIELDS = ["serverUrl", "token", "instagramUsername", "tiktokUsername"];
+const DEFAULTS = { serverUrl: "http://localhost:3080", token: "", instagramUsername: "", tiktokUsername: "" };
 
 const values = { ...DEFAULTS, ...(await chrome.storage.local.get(FIELDS)) };
 let savedTimer;
@@ -22,7 +22,7 @@ for (const field of FIELDS) {
   // Save as you type; a short confirmation replaces a Save button.
   input.addEventListener("input", () => {
     let value = input.value.trim();
-    if (field === "instagramUsername") value = value.replace(/^@/, "");
+    if (field === "instagramUsername" || field === "tiktokUsername") value = value.replace(/^@/, "");
     if (field === "serverUrl") {
       // Only store a complete http(s) URL. While it's empty, half-typed, or
       // anything else, clear it so syncs fall back to the default server.

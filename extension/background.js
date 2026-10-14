@@ -3,6 +3,8 @@ import * as instagram from "./instagram.js";
 import * as bluesky from "./bluesky.js";
 import * as x from "./x.js";
 import * as reddit from "./reddit.js";
+import * as youtube from "./youtube.js";
+import * as tiktok from "./tiktok.js";
 
 const DEFAULTS = { serverUrl: "http://localhost:3080", token: "" };
 
@@ -69,6 +71,8 @@ const PARSERS = {
   bluesky: (text) => bluesky.extractBookmarks(text).map(bluesky.toIngestItem),
   x: (text) => x.extractTweets(text).map(x.toIngestItem),
   reddit: (text) => reddit.extractThings(text).map(reddit.toIngestItem),
+  youtube: (text) => youtube.extractVideos(text).map(youtube.toIngestItem),
+  tiktok: (text) => tiktok.extractItems(text).map(tiktok.toIngestItem),
 };
 
 async function syncUrl(platform) {
@@ -77,6 +81,12 @@ async function syncUrl(platform) {
   if (platform === "x") return "https://x.com/i/bookmarks#save-me-sync";
   // Redirects to the signed-in user's saved page; the hash survives the redirect.
   if (platform === "reddit") return "https://old.reddit.com/saved#save-me-sync";
+  if (platform === "youtube") return "https://www.youtube.com/playlist?list=WL#save-me-sync";
+  if (platform === "tiktok") {
+    const { tiktokUsername } = await chrome.storage.local.get("tiktokUsername");
+    if (!tiktokUsername) throw new Error("Set your TikTok username in settings first");
+    return `https://www.tiktok.com/@${encodeURIComponent(tiktokUsername)}#save-me-sync`;
+  }
   const { instagramUsername } = await chrome.storage.local.get("instagramUsername");
   if (!instagramUsername) throw new Error("Set your Instagram username in the popup first");
   return `https://www.instagram.com/${encodeURIComponent(instagramUsername)}/saved/all-posts/#save-me-sync`;
@@ -89,6 +99,9 @@ async function startSync(platform, fullSync) {
   // after browsing brought in new saves (needsFull, set in ingestPage).
   const { statuses = {} } = await chrome.storage.local.get("statuses");
   if (statuses[platform]?.running || statuses[platform]?.needsFull) fullSync = true;
+  // Watch Later can be sorted oldest first, which puts new saves at the end,
+  // so an incremental sync could stop before reaching them.
+  if (platform === "youtube") fullSync = true;
   await recordStatus(platform, { created: 0, seen: 0, error: null, running: true, fullSync, needsFull: false });
 
   let url;
@@ -152,7 +165,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   if (message.type === "sync-done") {
     (async () => {
-      await recordStatus(message.platform, { running: false });
+      // A sync that couldn't start reading (no Favorites tab) reports why.
+      await recordStatus(message.platform, message.error ? { running: false, error: message.error } : { running: false });
       const { syncWindowId } = await chrome.storage.local.get("syncWindowId");
       // Only close the window the sync itself opened.
       if (sender.tab?.windowId === syncWindowId) {

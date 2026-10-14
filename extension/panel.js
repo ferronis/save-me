@@ -15,7 +15,11 @@
     { id: "bluesky", name: "Bluesky" },
     { id: "x", name: "X" },
     { id: "reddit", name: "Reddit" },
+    { id: "youtube", name: "YouTube" },
+    { id: "tiktok", name: "TikTok" },
   ];
+  // Platforms whose sync needs your username to find the saved page.
+  const USERNAME_SETTING = { instagram: "instagramUsername", tiktok: "tiktokUsername" };
 
   const CSS = `
     :host {
@@ -320,7 +324,7 @@
   }
 
   // Only whether a token exists is kept here, never the token itself.
-  const values = { hasToken: false, instagramUsername: "", statuses: {} };
+  const values = { hasToken: false, instagramUsername: "", tiktokUsername: "", statuses: {} };
 
   function render() {
     const needsToken = !values.hasToken;
@@ -336,7 +340,8 @@
       const card = cards[platform.id];
       const status = values.statuses?.[platform.id];
       let { text, error } = statusText(status, values.syncs?.[platform.id]);
-      if (platform.id === "instagram" && !values.instagramUsername && !status?.running) {
+      const usernameSetting = USERNAME_SETTING[platform.id];
+      if (usernameSetting && !values[usernameSetting] && !status?.running) {
         ({ text, error } = { text: "Add your username in settings", error: false });
       }
       const line = card.querySelector(".status");
@@ -359,15 +364,17 @@
       PLATFORMS.some(({ id }) => changes.statuses.oldValue?.[id]?.running && !changes.statuses.newValue?.[id]?.running);
     if (changes.token) values.hasToken = Boolean(changes.token.newValue);
     if (changes.instagramUsername) values.instagramUsername = changes.instagramUsername.newValue ?? "";
+    if (changes.tiktokUsername) values.tiktokUsername = changes.tiktokUsername.newValue ?? "";
     if (changes.statuses) values.statuses = changes.statuses.newValue ?? {};
     render();
     if (finished) loadSyncs();
   };
 
   async function open() {
-    const stored = await chrome.storage.local.get(["token", "instagramUsername", "statuses"]);
+    const stored = await chrome.storage.local.get(["token", "instagramUsername", "tiktokUsername", "statuses"]);
     values.hasToken = Boolean(stored.token);
     values.instagramUsername = stored.instagramUsername ?? "";
+    values.tiktokUsername = stored.tiktokUsername ?? "";
     values.statuses = stored.statuses ?? {};
     render();
     document.documentElement.appendChild(host);

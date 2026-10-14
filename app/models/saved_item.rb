@@ -1,5 +1,5 @@
 class SavedItem < ApplicationRecord
-  PLATFORMS = %w[threads instagram bluesky x reddit pinterest].freeze
+  PLATFORMS = %w[threads instagram bluesky x reddit youtube tiktok pinterest].freeze
   STATUSES = %w[inbox done dismissed snoozed].freeze
 
   # Fields that come from the source platform. Re-ingesting an item refreshes
@@ -132,11 +132,13 @@ class SavedItem < ApplicationRecord
   private
 
   # A platform's own label for what a post is about: Instagram's guess at the
-  # topic (useful when a reel's caption is thin) or the Reddit community.
+  # topic (useful when a reel's caption is thin), the Reddit community, or a
+  # TikTok's hashtags.
   def topic_hint
     case platform
     when "instagram" then raw["visual_discovery_organic_search_query"]
     when "reddit" then raw["subreddit"]
+    when "tiktok" then Array(raw["hashtags"]).join(", ").presence
     end
   end
 
