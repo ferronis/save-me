@@ -29,6 +29,16 @@
         <input id="tiktokUsername" type="text" spellcheck="false" placeholder="yourname" />
         <p class="help">Used to open your profile's Favorites tab. Leave empty if you don't use TikTok.</p>
 
+        <label for="autoSyncHours">Sync automatically</label>
+        <select id="autoSyncHours">
+          <option value="0">Off</option>
+          <option value="3">Every 3 hours</option>
+          <option value="6">Every 6 hours</option>
+          <option value="12">Every 12 hours</option>
+          <option value="24">Once a day</option>
+        </select>
+        <p class="help">Runs Sync all while Chrome is open. Each sync briefly opens its own window, because these sites only load saves in a window you can see.</p>
+
         <p id="saved" class="saved" aria-live="polite"></p>
       </form>
     </main>

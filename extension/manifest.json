@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Save Me",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Sends your Threads, Instagram, Bluesky, X, Reddit, YouTube, and TikTok saves to the local Save Me server.",
   "permissions": [
     "storage",
     "activeTab",
-    "scripting"
+    "scripting",
+    "alarms"
   ],
   "host_permissions": [
     "https://www.threads.com/*",

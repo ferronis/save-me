@@ -16,6 +16,22 @@ function parseServerUrl(value) {
   }
 }
 
+// The sync timer is a choice, not text, so it's saved on change as a number.
+// background.js sets or clears the alarm when it changes.
+const autoSync = document.getElementById("autoSyncHours");
+autoSync.value = String((await chrome.storage.local.get("autoSyncHours")).autoSyncHours ?? 0);
+autoSync.addEventListener("change", () => {
+  chrome.storage.local.set({ autoSyncHours: Number(autoSync.value) });
+  showSaved();
+});
+
+function showSaved() {
+  const saved = document.getElementById("saved");
+  saved.textContent = "Saved";
+  clearTimeout(savedTimer);
+  savedTimer = setTimeout(() => (saved.textContent = ""), 1200);
+}
+
 for (const field of FIELDS) {
   const input = document.getElementById(field);
   input.value = values[field] ?? "";
@@ -32,10 +48,7 @@ for (const field of FIELDS) {
     } else {
       chrome.storage.local.set({ [field]: value });
     }
-    const saved = document.getElementById("saved");
-    saved.textContent = "Saved";
-    clearTimeout(savedTimer);
-    savedTimer = setTimeout(() => (saved.textContent = ""), 1200);
+    showSaved();
   });
 }
 

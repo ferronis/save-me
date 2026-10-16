@@ -143,6 +143,52 @@ function requestSync(platform, fullSync) {
   });
 }
 
+// Platforms Sync all covers: ones you've synced before that have any
+// username their sync needs. One you've never used would only open a window
+// onto a login page. Mirrors syncAllPlatforms() in panel.js.
+const USERNAME_SETTING = { instagram: "instagramUsername", tiktok: "tiktokUsername" };
+async function syncAllPlatforms() {
+  const { serverUrl } = await settings();
+  const syncs = await fetch(`${serverUrl}/api/v1/platform_syncs`).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+  const usernames = await chrome.storage.local.get(Object.values(USERNAME_SETTING));
+  return Object.keys(PARSERS).filter((id) => syncs[id]?.synced_at && (!USERNAME_SETTING[id] || usernames[USERNAME_SETTING[id]]));
+}
+
+// The optional sync timer: an alarm that runs Sync all every few hours while
+// Chrome is open. Set from the extension's settings (autoSyncHours, 0 = off).
+const AUTO_SYNC = "auto-sync";
+// One update at a time, so an older call that read the previous setting
+// can't recreate an alarm a newer call just cleared.
+let scheduling = Promise.resolve();
+function scheduleAutoSync() {
+  const update = async () => {
+    const { autoSyncHours = 0 } = await chrome.storage.local.get("autoSyncHours");
+    const existing = await chrome.alarms.get(AUTO_SYNC);
+    const minutes = autoSyncHours * 60;
+    if (!minutes) return chrome.alarms.clear(AUTO_SYNC);
+    if (existing?.periodInMinutes === minutes) return;
+    await chrome.alarms.create(AUTO_SYNC, { delayInMinutes: minutes, periodInMinutes: minutes });
+  };
+  scheduling = scheduling.then(update, update);
+  return scheduling;
+}
+
+chrome.runtime.onStartup.addListener(scheduleAutoSync);
+chrome.runtime.onInstalled.addListener(scheduleAutoSync);
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes.autoSyncHours) scheduleAutoSync();
+});
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name !== AUTO_SYNC) return;
+  try {
+    const { token } = await settings();
+    // syncAll itself skips the run if a sync is already going.
+    if (token) await syncAll(await syncAllPlatforms());
+  } catch (error) {
+    console.error("Save Me: scheduled sync failed", error);
+  }
+});
+
 function syncAll(platforms) {
   return exclusive(async () => {
     const [first, ...rest] = platforms;

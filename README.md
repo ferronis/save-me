@@ -86,7 +86,7 @@ To upgrade, run `brew upgrade --fetch-HEAD save-me` and then `brew services rest
 
 ### 3. First sync
 
-In the panel, click the sync icon next to a platform. After that, **Sync all** syncs every platform you've synced before, one after another. A small window opens on your Saved page and scrolls through it. Keep that window visible until it closes on its own. These sites stop loading more posts in a hidden or minimized window.
+In the panel, click the sync icon next to a platform. After that, **Sync all** syncs every platform you've synced before, one after another. To have it run on its own, pick an interval under **Sync automatically** in the extension's settings; it runs while Chrome is open. A small window opens on your Saved page and scrolls through it. Keep that window visible until it closes on its own. These sites stop loading more posts in a hidden or minimized window.
 
 The first sync pulls everything. Later syncs stop as soon as they reach posts they already have. If a sync is interrupted, the next one goes all the way through again. Browsing your saved pages normally also picks up whatever they load.
 
