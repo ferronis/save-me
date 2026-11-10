@@ -138,8 +138,11 @@ class VideoTranscriber
 
   # Takes a local file or, for HLS, the playlist URL.
   def whisper(source)
-    duration = @runner.call("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", source).to_f
-    return nil if duration > MAX_SECONDS
+    # Lists each stream's type and the duration. Some reels have no audio
+    # track at all, which is no speech rather than a failure.
+    probe = @runner.call("ffprobe", "-v", "error", "-show_entries", "stream=codec_type:format=duration", "-of", "default=nw=1", source)
+    return nil unless probe.include?("codec_type=audio")
+    return nil if probe[/^duration=([\d.]+)/, 1].to_f > MAX_SECONDS
 
     text = Dir.mktmpdir do |dir|
       wav = File.join(dir, "audio.wav")
