@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_07_234712) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_10_130000) do
   create_table "platform_syncs", force: :cascade do |t|
     t.string "platform", null: false
     t.datetime "synced_at", null: false
@@ -40,6 +40,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_234712) do
     t.datetime "snoozed_until"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.json "recipe"
+    t.datetime "recipe_checked_at"
+    t.text "description"
+    t.text "transcript"
+    t.datetime "transcript_checked_at"
     t.index ["classified_at"], name: "index_saved_items_on_classified_at"
     t.index ["deadline_on"], name: "index_saved_items_on_deadline_on"
     t.index ["platform", "external_id"], name: "index_saved_items_on_platform_and_external_id", unique: true

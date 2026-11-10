@@ -21,6 +21,16 @@ export type Save = {
   thumbnail_url: string | null
   media_aspect: number | null
   media_type: 'image' | 'video' | 'link' | null
+  recipe: Recipe | null
+}
+
+// Written out from a food post. Quantities are null when the post gave none.
+export type Recipe = {
+  title: string | null
+  yield: string | null
+  ingredients: { section: string | null; quantity: string | null; item: string }[]
+  steps: string[]
+  notes: string[]
 }
 
 export type Category = { name: string; count: number }

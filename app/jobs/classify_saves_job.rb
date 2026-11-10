@@ -23,5 +23,7 @@ class ClassifySavesJob < ApplicationJob
       # can't loop forever.
       break if classifier.classify_batches(saves.each_slice(BATCH_SIZE).to_a).zero?
     end
+
+    ExtractRecipesJob.perform_later if SavedItem.recipe_unchecked.exists?
   end
 end
