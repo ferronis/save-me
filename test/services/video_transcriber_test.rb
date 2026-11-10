@@ -159,6 +159,22 @@ class VideoTranscriberTest < ActiveSupport::TestCase
     assert_equal "Serves 2.\n500g spaghetti", save.description
   end
 
+  test "transcribes every clip in a carousel, in order" do
+    save = SavedItem.create!(platform: "instagram", external_id: "c1", media: [
+      { "type" => "video", "video_url" => "https://cdn/1.mp4" }, { "type" => "image", "url" => "https://cdn/p.jpg" },
+      { "type" => "video", "video_url" => "https://cdn/2.mp4" }
+    ])
+    spoken = [ "Make the dough.", "Bake for 20 minutes." ]
+    runner = FakeRunner.new("ffprobe" => "30", "ffmpeg" => "")
+    runner.define_singleton_method(:call) { |*command| command.first == "whisper-cli" ? spoken.shift : super(*command) }
+    fetched = []
+
+    VideoTranscriber.new(runner: runner, fetcher: ->(url, to: nil) { fetched << url; true }).transcribe(save)
+
+    assert_equal %w[https://cdn/1.mp4 https://cdn/2.mp4], fetched
+    assert_equal "Make the dough.\n\nBake for 20 minutes.", save.reload.transcript
+  end
+
   test "leaves a video with an expired link unchecked" do
     save = SavedItem.create!(platform: "instagram", external_id: "i3", media: [ { "type" => "video", "video_url" => "https://cdn/old.mp4" } ])
 

@@ -99,15 +99,18 @@ class VideoTranscriber
 
     subtitles = save.raw["video_subtitles_uri"]
     transcript = (self.class.caption_text(@fetcher.call(subtitles)) if subtitles.to_s.start_with?("https://"))
+    # A carousel can hold several clips, so each is transcribed in order.
     found[:transcript] = transcript || begin
-      url = save.media.find { |m| m["type"] == "video" && m["video_url"].to_s.start_with?("https://") }&.dig("video_url")
-      url && Dir.mktmpdir do |dir|
-        path = File.join(dir, "video.mp4")
-        # A link that no longer downloads has expired; a later sync brings a fresh one.
-        raise Error, "the video link has expired" unless @fetcher.call(url, to: path)
+      urls = save.media.filter_map { |m| m["video_url"] if m["type"] == "video" && m["video_url"].to_s.start_with?("https://") }
+      urls.filter_map do |url|
+        Dir.mktmpdir do |dir|
+          path = File.join(dir, "video.mp4")
+          # A link that no longer downloads has expired; a later sync brings a fresh one.
+          raise Error, "the video link has expired" unless @fetcher.call(url, to: path)
 
-        whisper(path)
-      end
+          whisper(path)
+        end
+      end.join("\n\n").presence
     end
   end
 
