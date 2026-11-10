@@ -74,7 +74,7 @@ module Api
 
       def save_json(save)
         save.slice(:id, :platform, :permalink, :author_handle, :author_name, :text, :posted_at,
-          :categories, :summary, :suggested_action, :priority, :deadline_on, :status, :snoozed_until)
+          :categories, :summary, :suggested_action, :priority, :deadline_on, :status, :snoozed_until, :recipe)
           .merge(
             media_count: save.media.size,
             thumbnail_url: File.exist?(save.thumbnail_path) ? "/api/v1/saves/#{save.id}/thumbnail" : nil,

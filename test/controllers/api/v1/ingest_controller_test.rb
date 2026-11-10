@@ -85,6 +85,33 @@ class Api::V1::IngestControllerTest < ActionDispatch::IntegrationTest
     assert_no_enqueued_jobs { ingest({ platform: "threads", items: [ item("1") ] }) }
   end
 
+  test "fresh links on a re-sync retry a video whose transcript failed" do
+    old_media = [ { type: "video", video_url: "https://cdn/old.mp4" } ]
+    failed = SavedItem.create!(platform: "instagram", external_id: "v1", categories: [ "Cooking" ], media: old_media,
+      classified_at: Time.current, recipe_checked_at: Time.current)
+    done = SavedItem.create!(platform: "instagram", external_id: "v2", categories: [ "Cooking" ], media: old_media,
+      classified_at: Time.current, recipe_checked_at: Time.current, transcript_checked_at: Time.current)
+    fresh = [ { type: "video", video_url: "https://cdn/new.mp4" } ]
+
+    VideoTranscriber.stub(:ready?, true) do
+      assert_enqueued_with(job: ExtractRecipesJob) do
+        ingest({ platform: "instagram", items: [ { external_id: "v1", media: fresh }, { external_id: "v2", media: fresh } ] })
+      end
+    end
+    assert_nil failed.reload.recipe_checked_at
+    assert done.reload.recipe_checked_at
+  end
+
+  test "without the video tools a re-sync leaves failed videos alone" do
+    failed = SavedItem.create!(platform: "instagram", external_id: "v1", categories: [ "Cooking" ],
+      media: [ { type: "video", video_url: "https://cdn/old.mp4" } ], classified_at: Time.current, recipe_checked_at: Time.current)
+
+    VideoTranscriber.stub(:ready?, false) do
+      ingest({ platform: "instagram", items: [ { external_id: "v1", media: [ { type: "video", video_url: "https://cdn/new.mp4" } ] } ] })
+    end
+    assert failed.reload.recipe_checked_at
+  end
+
   test "records when the platform last synced, even with nothing new" do
     travel_to Time.utc(2026, 10, 7, 12) do
       ingest({ platform: "threads", items: [ item("1") ] })

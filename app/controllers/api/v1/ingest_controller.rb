@@ -24,6 +24,10 @@ module Api
         if result[:created].positive?
           ClassifySavesJob.perform_later
           CacheThumbnailsJob.perform_later
+        elsif result[:updated].positive? && SavedItem.recipe_unchecked.exists?
+          # Classifying chains into recipes on its own; this covers a re-sync
+          # that only gave a failed video fresh links.
+          ExtractRecipesJob.perform_later
         end
         render json: result
       end

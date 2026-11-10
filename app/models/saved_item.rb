@@ -15,6 +15,17 @@ class SavedItem < ApplicationRecord
 
   scope :unclassified, -> { where(classified_at: nil) }
 
+  # Categories whose saves may hold a recipe. The classifier names its own
+  # categories, so food posts can land under any of these.
+  RECIPE_CATEGORIES = %w[Recipes Cooking Baking Food].freeze
+
+  # Saves in a food category that the recipe extractor hasn't looked at yet.
+  scope :recipe_unchecked, -> {
+    where(recipe_checked_at: nil).where(
+      "EXISTS (SELECT 1 FROM json_each(saved_items.categories) WHERE json_each.value IN (?))", RECIPE_CATEGORIES
+    )
+  }
+
   # Inbox, plus snoozed saves whose snooze has run out.
   scope :active, -> { where(status: "inbox").or(where(status: "snoozed", snoozed_until: ..Time.current)) }
   scope :still_snoozed, -> { where(status: "snoozed", snoozed_until: Time.current..) }
@@ -97,6 +108,13 @@ class SavedItem < ApplicationRecord
   def self.ingest_one(platform, attrs)
     item = find_or_initialize_by(platform: platform, external_id: attrs["external_id"].to_s.presence)
     item.assign_attributes(attrs.slice(*SOURCE_FIELDS))
+    # A video whose transcript failed, usually because its signed links had
+    # expired, gets its recipe written out again once a sync brings new links.
+    # Without the video tools nothing is ever transcribed, so there's nothing to retry.
+    if item.media_changed? && item.video? && item.transcript_checked_at.nil? && item.recipe_checked_at &&
+        VideoTranscriber.ready?
+      item.recipe_checked_at = nil
+    end
     new_record = item.new_record?
     changed = item.changed?
     return item.errors.full_messages unless item.save
@@ -118,6 +136,21 @@ class SavedItem < ApplicationRecord
       topic_hint: topic_hint,
       media: media.map { |m| [ m["type"], m["alt"] ].compact.join(": ") }.presence
     }.compact
+  end
+
+  # What the recipe extractor sees: the classifier's view, but with the whole
+  # caption, since a recipe often runs past the classifier's cutoff, plus what
+  # the video says. TikTok's description repeats the caption, so it's left out.
+  def recipe_context
+    classifier_context.merge(
+      text: text.to_s.truncate(8000),
+      description: (description.to_s.truncate(5000) unless description.to_s.strip == text.to_s.strip),
+      transcript: transcript.to_s.truncate(8000)
+    ).compact_blank
+  end
+
+  def video?
+    media.any? { |m| m["type"] == "video" }
   end
 
   # Per environment, so test runs never see or clobber dev thumbnails.

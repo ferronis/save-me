@@ -52,6 +52,8 @@ case "${1:-server}" in
     else
       echo "Claude Code isn't on your PATH. Install it and run \`claude\` once to sign in, then run \`save-me setup\` again." >&2
     fi
+    # About 150 MB, downloaded once, for transcribing saved recipe videos.
+    bin/rails saves:whisper_model || echo "Recipe videos won't be transcribed until \`save-me saves:whisper_model\` succeeds." >&2
     echo "The extension connects to Save Me on its own. If it can't, paste this ingest token into its settings: $INGEST_TOKEN"
     ;;
   server)

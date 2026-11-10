@@ -3,6 +3,9 @@ require "open3"
 
 class SaveMeLauncherTest < ActiveSupport::TestCase
   LAUNCHER = Rails.root.join("bin/save-me").to_s
+  # setup downloads the speech model unless one is already there; point it at
+  # an existing file so tests never download it.
+  NO_DOWNLOAD = { "WHISPER_MODEL" => __FILE__ }.freeze
 
   test "reads settings as plain KEY=value lines and records where claude lives" do
     Dir.mktmpdir do |dir|
@@ -18,7 +21,7 @@ class SaveMeLauncherTest < ActiveSupport::TestCase
         SECRET_KEY_BASE=test
       ENV
 
-      out, err, status = Open3.capture3({ "SAVE_ME_CONFIG" => config, "PATH" => "#{tools}:/usr/bin:/bin" }, LAUNCHER, "setup")
+      out, err, status = Open3.capture3({ "SAVE_ME_CONFIG" => config, "PATH" => "#{tools}:/usr/bin:/bin", **NO_DOWNLOAD }, LAUNCHER, "setup")
 
       assert status.success?, err
       assert_includes out, "paste this ingest token into its settings: a b=c"
@@ -35,7 +38,7 @@ class SaveMeLauncherTest < ActiveSupport::TestCase
     Dir.mktmpdir do |dir|
       config = File.join(dir, "save-me.env")
 
-      out, _err, status = Open3.capture3({ "SAVE_ME_CONFIG" => config, "PATH" => "/usr/bin:/bin" }, LAUNCHER, "setup")
+      out, _err, status = Open3.capture3({ "SAVE_ME_CONFIG" => config, "PATH" => "/usr/bin:/bin", **NO_DOWNLOAD }, LAUNCHER, "setup")
 
       assert status.success?
       assert_match(/^INGEST_TOKEN=\h{64}$/, File.read(config))

@@ -23,6 +23,7 @@ const save = (id: number, overrides: Partial<Save> = {}): Save => ({
   thumbnail_url: null,
   media_aspect: null,
   media_type: null,
+  recipe: null,
   ...overrides,
 })
 
@@ -169,4 +170,32 @@ test('filters by network', async () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/saves?view=next&offset=0&platform=reddit', expect.anything()),
   )
   expect(within(networks).getByRole('button', { name: 'Reddit, 1' })).toHaveAttribute('aria-current', 'true')
+})
+
+test('a save with a recipe opens it on the card', async () => {
+  const recipe = {
+    title: 'Gyudon',
+    yield: null,
+    ingredients: [
+      { section: null, quantity: '2 cups', item: 'rice' },
+      { section: 'Sauce', quantity: null, item: 'soy sauce' },
+    ],
+    steps: ['Add everything to the rice cooker.'],
+    notes: ['Sauce quantities aren’t given.'],
+  }
+  fetchMock.mockImplementation(async (url: string) => {
+    if (url.startsWith('/api/v1/categories') || url.startsWith('/api/v1/platforms')) return new Response('[]', { status: 200 })
+    return new Response(JSON.stringify({ total: 1, items: [save(1, { recipe })] }), { status: 200 })
+  })
+  render(<App />)
+  const card = (await screen.findByText('Summary 1')).closest('article')!
+  expect(within(card).queryByText('Gyudon')).not.toBeInTheDocument()
+
+  await userEvent.click(within(card).getByRole('button', { name: 'Recipe' }))
+
+  expect(within(card).getByText('Gyudon')).toBeInTheDocument()
+  expect(within(card).getByText('Sauce')).toBeInTheDocument()
+  expect(within(card).getByText('soy sauce')).toBeInTheDocument()
+  expect(within(card).getByText('Add everything to the rice cooker.')).toBeInTheDocument()
+  expect(within(card).getByRole('button', { name: 'Hide recipe' })).toBeInTheDocument()
 })

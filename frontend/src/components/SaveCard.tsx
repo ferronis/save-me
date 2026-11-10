@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { ArrowRight, Check, Clock, ExternalLink, Images, Inbox, Play, X } from 'lucide-react'
-import type { Save, Status } from '../api'
+import { ArrowRight, Check, ChefHat, Clock, ExternalLink, Images, Inbox, Play, X } from 'lucide-react'
+import type { Recipe, Save, Status } from '../api'
 import { daysUntil, parseDate, shortDate, snoozeOptions } from '../dates'
 import { PlatformIcon } from './PlatformIcon'
 
@@ -35,9 +35,57 @@ function aspectFor(save: Save) {
   return Math.min(Math.max(save.media_aspect ?? 1, 0.8), 1.91)
 }
 
+// Ingredients grouped under the post's own sub-headings, in order.
+function ingredientGroups(recipe: Recipe) {
+  const groups: { section: string | null; items: Recipe['ingredients'] }[] = []
+  for (const ingredient of recipe.ingredients) {
+    const last = groups[groups.length - 1]
+    if (last && last.section === ingredient.section) last.items.push(ingredient)
+    else groups.push({ section: ingredient.section, items: [ingredient] })
+  }
+  return groups
+}
+
+function RecipeView({ recipe }: { recipe: Recipe }) {
+  return (
+    <div className="etched mt-4 pt-4 text-sm leading-relaxed">
+      {recipe.title && <h3 className="text-[15px] font-semibold">{recipe.title}</h3>}
+      {recipe.yield && <p className="text-soft text-xs">{recipe.yield}</p>}
+      {ingredientGroups(recipe).map((group, index) => (
+        <div key={index} className="mt-3">
+          {group.section && <h4 className="text-soft text-xs font-semibold uppercase tracking-wide">{group.section}</h4>}
+          <ul className="mt-1 space-y-0.5">
+            {group.items.map((ingredient, i) => (
+              <li key={i}>
+                {ingredient.quantity && <span className="font-medium">{ingredient.quantity} </span>}
+                {ingredient.item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+      {recipe.steps.length > 0 && (
+        <ol className="mt-3 list-decimal space-y-1.5 pl-5">
+          {recipe.steps.map((step, i) => (
+            <li key={i}>{step}</li>
+          ))}
+        </ol>
+      )}
+      {recipe.notes.length > 0 && (
+        <ul className="text-soft mt-3 space-y-1 text-xs">
+          {recipe.notes.map((note, i) => (
+            <li key={i}>{note}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 export function SaveCard({ save, actionable, onUpdate, onCategory }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [snoozeOpen, setSnoozeOpen] = useState(false)
+  const [recipeOpen, setRecipeOpen] = useState(false)
   const posted = save.posted_at ? shortDate(new Date(save.posted_at)) : null
   const handle = save.author_handle ?? save.platform
   const body = save.text?.trim() || null
@@ -113,7 +161,19 @@ export function SaveCard({ save, actionable, onUpdate, onCategory }: Props) {
         </div>
       )}
 
+      {save.recipe && recipeOpen && <RecipeView recipe={save.recipe} />}
+
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        {save.recipe && (
+          <button
+            type="button"
+            className="pill inline-flex items-center gap-1 px-3 py-1 text-xs font-medium"
+            aria-expanded={recipeOpen}
+            onClick={() => setRecipeOpen(!recipeOpen)}
+          >
+            <ChefHat className="size-3.5" aria-hidden /> {recipeOpen ? 'Hide recipe' : 'Recipe'}
+          </button>
+        )}
         {save.categories.map((name) => (
           <button key={name} type="button" onClick={() => onCategory(name)} className="pill px-3 py-1 text-xs">
             {name}

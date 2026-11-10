@@ -5,7 +5,10 @@ class SaveMe < Formula
   head "https://github.com/ferronis/save-me.git", branch: "main"
 
   depends_on "node" => :build
+  depends_on "ffmpeg"
   depends_on "ruby@3.3"
+  depends_on "whisper-cpp"
+  depends_on "yt-dlp"
 
   def install
     cd "frontend" do
