@@ -99,13 +99,17 @@ class VideoTranscriber
 
     subtitles = save.raw["video_subtitles_uri"]
     transcript = (self.class.caption_text(@fetcher.call(subtitles)) if subtitles.to_s.start_with?("https://"))
-    # A carousel can hold several clips, so each is transcribed in order.
-    found[:transcript] = transcript || begin
-      urls = save.media.filter_map { |m| m["video_url"] if m["type"] == "video" && m["video_url"].to_s.start_with?("https://") }
-      urls.filter_map do |url|
-        # Bluesky videos are HLS playlists; ffmpeg fetches their segments itself.
-        next whisper(url) if URI(url).path.end_with?(".m3u8")
+    found[:transcript] = transcript
+    return if transcript
 
+    # A carousel can hold several clips, so each is transcribed in order. Each
+    # one is added as it finishes, so a later clip failing keeps the earlier ones.
+    urls = save.media.filter_map { |m| m["video_url"] if m["type"] == "video" && m["video_url"].to_s.start_with?("https://") }
+    urls.each do |url|
+      text = if URI(url).path.end_with?(".m3u8")
+        # Bluesky videos are HLS playlists; ffmpeg fetches their segments itself.
+        whisper(url)
+      else
         Dir.mktmpdir do |dir|
           path = File.join(dir, "video.mp4")
           # A link that no longer downloads has expired; a later sync brings a fresh one.
@@ -113,7 +117,8 @@ class VideoTranscriber
 
           whisper(path)
         end
-      end.join("\n\n").presence
+      end
+      found[:transcript] = [ found[:transcript], text ].compact.join("\n\n").presence
     end
   end
 

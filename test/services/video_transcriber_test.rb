@@ -175,6 +175,19 @@ class VideoTranscriberTest < ActiveSupport::TestCase
     assert_equal "Make the dough.\n\nBake for 20 minutes.", save.reload.transcript
   end
 
+  test "keeps earlier carousel clips when a later one has expired" do
+    save = SavedItem.create!(platform: "instagram", external_id: "c2", media: [
+      { "type" => "video", "video_url" => "https://cdn/1.mp4" }, { "type" => "video", "video_url" => "https://cdn/2.mp4" }
+    ])
+    runner = FakeRunner.new("ffprobe" => "30", "ffmpeg" => "", "whisper-cli" => "Make the dough.")
+
+    VideoTranscriber.new(runner: runner, fetcher: ->(url, to: nil) { url.end_with?("1.mp4") }).transcribe(save)
+
+    save.reload
+    assert_equal "Make the dough.", save.transcript
+    assert_nil save.transcript_checked_at
+  end
+
   test "hands a Bluesky HLS playlist straight to ffmpeg instead of downloading it" do
     save = SavedItem.create!(platform: "bluesky", external_id: "at://did:plc:a/app.bsky.feed.post/1",
       media: [ { "type" => "video", "video_url" => "https://video.bsky.app/watch/abc/playlist.m3u8" } ])
