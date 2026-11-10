@@ -84,7 +84,7 @@ class VideoTranscriberTest < ActiveSupport::TestCase
   test "transcribes the audio when there are no captions, dropping music markers" do
     save = SavedItem.create!(platform: "tiktok", external_id: "t1", permalink: "https://www.tiktok.com/@a/video/1",
       text: "Feta pasta", media: [ { "type" => "video" } ])
-    runner = FakeRunner.new("yt-dlp" => info(description: "Feta pasta"), "ffprobe" => "60.1\n", "ffmpeg" => "",
+    runner = FakeRunner.new("yt-dlp" => info(description: "Feta pasta"), "ffprobe" => "codec_type=video\ncodec_type=audio\nduration=60.1\n", "ffmpeg" => "",
       "whisper-cli" => " [Music] ♪ Bake at 400 for 40 minutes. (upbeat music)\n")
 
     VideoTranscriber.new(runner: runner, fetcher: ->(*) { flunk "nothing to fetch" }).transcribe(save)
@@ -95,7 +95,7 @@ class VideoTranscriberTest < ActiveSupport::TestCase
 
   test "drops whisper's looping output over music" do
     save = SavedItem.create!(platform: "tiktok", external_id: "t2", permalink: "https://www.tiktok.com/@a/video/2", media: [ { "type" => "video" } ])
-    runner = FakeRunner.new("yt-dlp" => info, "ffprobe" => "15", "ffmpeg" => "", "whisper-cli" => "1/2 tdm + " * 12)
+    runner = FakeRunner.new("yt-dlp" => info, "ffprobe" => "codec_type=video\ncodec_type=audio\nduration=15\n", "ffmpeg" => "", "whisper-cli" => "1/2 tdm + " * 12)
 
     VideoTranscriber.new(runner: runner, fetcher: ->(*) { nil }).transcribe(save)
     assert_nil save.reload.transcript
@@ -128,7 +128,7 @@ class VideoTranscriberTest < ActiveSupport::TestCase
     reel = SavedItem.create!(platform: "threads", external_id: "th1", media: [ { "type" => "video", "video_url" => "https://cdn/v.mp4" } ])
     long = SavedItem.create!(platform: "instagram", external_id: "i2", media: [ { "type" => "video", "video_url" => "https://cdn/l.mp4" } ],
       raw: { "video_duration" => 600 })
-    runner = FakeRunner.new("ffprobe" => "30", "ffmpeg" => "", "whisper-cli" => "Fold in the butter.")
+    runner = FakeRunner.new("ffprobe" => "codec_type=video\ncodec_type=audio\nduration=30\n", "ffmpeg" => "", "whisper-cli" => "Fold in the butter.")
     fetched = []
     fetcher = ->(url, to: nil) { fetched << [ url, to.present? ]; true }
 
@@ -165,7 +165,7 @@ class VideoTranscriberTest < ActiveSupport::TestCase
       { "type" => "video", "video_url" => "https://cdn/2.mp4" }
     ])
     spoken = [ "Make the dough.", "Bake for 20 minutes." ]
-    runner = FakeRunner.new("ffprobe" => "30", "ffmpeg" => "")
+    runner = FakeRunner.new("ffprobe" => "codec_type=video\ncodec_type=audio\nduration=30\n", "ffmpeg" => "")
     runner.define_singleton_method(:call) { |*command| command.first == "whisper-cli" ? spoken.shift : super(*command) }
     fetched = []
 
@@ -179,7 +179,7 @@ class VideoTranscriberTest < ActiveSupport::TestCase
     save = SavedItem.create!(platform: "instagram", external_id: "c2", media: [
       { "type" => "video", "video_url" => "https://cdn/1.mp4" }, { "type" => "video", "video_url" => "https://cdn/2.mp4" }
     ])
-    runner = FakeRunner.new("ffprobe" => "30", "ffmpeg" => "", "whisper-cli" => "Make the dough.")
+    runner = FakeRunner.new("ffprobe" => "codec_type=video\ncodec_type=audio\nduration=30\n", "ffmpeg" => "", "whisper-cli" => "Make the dough.")
 
     VideoTranscriber.new(runner: runner, fetcher: ->(url, to: nil) { url.end_with?("1.mp4") }).transcribe(save)
 
@@ -188,10 +188,22 @@ class VideoTranscriberTest < ActiveSupport::TestCase
     assert_nil save.transcript_checked_at
   end
 
+  test "treats a video with no audio track as no speech" do
+    save = SavedItem.create!(platform: "instagram", external_id: "silent", media: [ { "type" => "video", "video_url" => "https://cdn/s.mp4" } ])
+    runner = FakeRunner.new("ffprobe" => "codec_type=video\nduration=12.5\n")
+
+    VideoTranscriber.new(runner: runner, fetcher: ->(*, **) { true }).transcribe(save)
+
+    save.reload
+    assert_nil save.transcript
+    assert save.transcript_checked_at
+    assert_equal %w[ffprobe], runner.calls.map(&:first)
+  end
+
   test "hands a Bluesky HLS playlist straight to ffmpeg instead of downloading it" do
     save = SavedItem.create!(platform: "bluesky", external_id: "at://did:plc:a/app.bsky.feed.post/1",
       media: [ { "type" => "video", "video_url" => "https://video.bsky.app/watch/abc/playlist.m3u8" } ])
-    runner = FakeRunner.new("ffprobe" => "20", "ffmpeg" => "", "whisper-cli" => "Whisk the eggs.")
+    runner = FakeRunner.new("ffprobe" => "codec_type=video\ncodec_type=audio\nduration=20\n", "ffmpeg" => "", "whisper-cli" => "Whisk the eggs.")
 
     VideoTranscriber.new(runner: runner, fetcher: ->(*, **) { flunk "playlists aren't downloaded" }).transcribe(save)
 
