@@ -175,6 +175,17 @@ class VideoTranscriberTest < ActiveSupport::TestCase
     assert_equal "Make the dough.\n\nBake for 20 minutes.", save.reload.transcript
   end
 
+  test "hands a Bluesky HLS playlist straight to ffmpeg instead of downloading it" do
+    save = SavedItem.create!(platform: "bluesky", external_id: "at://did:plc:a/app.bsky.feed.post/1",
+      media: [ { "type" => "video", "video_url" => "https://video.bsky.app/watch/abc/playlist.m3u8" } ])
+    runner = FakeRunner.new("ffprobe" => "20", "ffmpeg" => "", "whisper-cli" => "Whisk the eggs.")
+
+    VideoTranscriber.new(runner: runner, fetcher: ->(*, **) { flunk "playlists aren't downloaded" }).transcribe(save)
+
+    assert_equal "Whisk the eggs.", save.reload.transcript
+    assert_includes runner.calls.find { |c| c.first == "ffmpeg" }, "https://video.bsky.app/watch/abc/playlist.m3u8"
+  end
+
   test "leaves a video with an expired link unchecked" do
     save = SavedItem.create!(platform: "instagram", external_id: "i3", media: [ { "type" => "video", "video_url" => "https://cdn/old.mp4" } ])
 

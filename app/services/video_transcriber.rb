@@ -103,6 +103,9 @@ class VideoTranscriber
     found[:transcript] = transcript || begin
       urls = save.media.filter_map { |m| m["video_url"] if m["type"] == "video" && m["video_url"].to_s.start_with?("https://") }
       urls.filter_map do |url|
+        # Bluesky videos are HLS playlists; ffmpeg fetches their segments itself.
+        next whisper(url) if URI(url).path.end_with?(".m3u8")
+
         Dir.mktmpdir do |dir|
           path = File.join(dir, "video.mp4")
           # A link that no longer downloads has expired; a later sync brings a fresh one.
@@ -128,14 +131,17 @@ class VideoTranscriber
     Array(tracks).find { |track| track["ext"] == "vtt" }&.dig("url")
   end
 
-  def whisper(path)
-    duration = @runner.call("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path).to_f
+  # Takes a local file or, for HLS, the playlist URL.
+  def whisper(source)
+    duration = @runner.call("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", source).to_f
     return nil if duration > MAX_SECONDS
 
-    wav = "#{path}.wav"
-    @runner.call("ffmpeg", "-loglevel", "error", "-y", "-i", path, "-vn", "-ar", "16000", "-ac", "1", wav)
-    text = @runner.call("whisper-cli", "--model", self.class.model_path, "--file", wav, "--language", "auto",
-      "--no-timestamps", "--no-prints")
+    text = Dir.mktmpdir do |dir|
+      wav = File.join(dir, "audio.wav")
+      @runner.call("ffmpeg", "-loglevel", "error", "-y", "-i", source, "-vn", "-ar", "16000", "-ac", "1", wav)
+      @runner.call("whisper-cli", "--model", self.class.model_path, "--file", wav, "--language", "auto",
+        "--no-timestamps", "--no-prints")
+    end
     # whisper can split a multibyte character across tokens.
     text = text.scrub.gsub(NOISE, " ").squish
     # Over music, whisper can loop on a few made-up words ("1/2 tdm + 1/2
